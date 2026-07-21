@@ -22,10 +22,13 @@ final class OAuthServiceTest extends TestCase
         $service = new OAuthService($transport);
         $credentials = new AppCredentials('key', 'secret');
 
-        $begin = $service->begin($credentials);
+        $begin = $service->begin($credentials, callbackUrl: 'https://app.test/flickr/callback');
         $token = $service->complete($credentials, $begin->requestToken, 'verifier', $begin->requestTokenSecret);
 
         $this->assertStringContainsString('oauth_token=request-token', $begin->authorizationUrl);
+        $request = $transport->sentRequests()[0];
+
+        $this->assertSame('https://app.test/flickr/callback', $request['options']['query']['oauth_callback']);
         $this->assertSame('access-token', $token->oauthToken);
         $this->assertSame('1@N01', $token->userNsid);
     }

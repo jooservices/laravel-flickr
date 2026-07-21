@@ -23,8 +23,9 @@ final class OAuthService
     public function begin(
         AppCredentials $credentials,
         AuthPermission $permission = AuthPermission::Read,
+        ?string $callbackUrl = null,
     ): OAuthBeginResult {
-        $client = $this->client($credentials);
+        $client = $this->client($credentials, $callbackUrl);
         $requestToken = $client->auth()->requestToken($permission);
 
         return new OAuthBeginResult(
@@ -56,10 +57,10 @@ final class OAuthService
         );
     }
 
-    private function client(AppCredentials $credentials): Flickr
+    private function client(AppCredentials $credentials, ?string $callbackUrl = null): Flickr
     {
         return FlickrFactory::make(
-            FlickrConfig::from(['apiKey' => $credentials->apiKey, 'apiSecret' => $credentials->apiSecret]),
+            new FlickrConfig($credentials->apiKey, $credentials->apiSecret, $callbackUrl),
             transport: $this->transport,
         );
     }
