@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  PHP_VERSION: '8.5'
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@44454db4f0199b8b9685a5d763dc37cbf79108e1 # v2.36.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+
+      - name: Install Composer dependencies
+        uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # v4.0.0
+
+      - name: Validate Composer metadata
+        run: composer validate --strict
+
+      - name: Run security audit
+        run: composer audit --locked --abandoned=ignore
+
+      - name: Run lint checks
+        run: composer lint:all
+
+      - name: Run tests
+        run: composer test -- --no-coverage
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate]
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          generate_release_notes: true
+          body: |
+            ## jooservices/laravel-flickr ${{ github.ref_name }}
+
+            Laravel integration on top of `jooservices/flickr`: account-bound clients and sync page-level fetch helpers.
+            No queues, no crawl engine, no UI.
+
+            Install after Packagist listing:
+
+            ```bash
+            composer require jooservices/laravel-flickr:^1.0
+            ```
+
+            Until Packagist is live, use VCS:
+
+            ```json
+            {
+              "repositories": [
+                {
+                  "type": "vcs",
+                  "url": "https://github.com/jooservices/laravel-flickr"
+                }
+              ],
+              "require": {
+                "jooservices/laravel-flickr": "^1.0"
+              }
+            }
+            ```
+
+            See [CHANGELOG.md](https://github.com/jooservices/laravel-flickr/blob/main/CHANGELOG.md).

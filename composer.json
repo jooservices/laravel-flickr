@@ -1,0 +1,90 @@
+{
+    "name": "jooservices/laravel-flickr",
+    "description": "Laravel integration on top of jooservices/flickr: account-bound clients and sync page-level fetch helpers. No queues, no crawl engine, no UI.",
+    "type": "library",
+    "keywords": [
+        "laravel",
+        "flickr",
+        "oauth",
+        "api",
+        "sdk"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "JOOservices",
+            "email": "admin@jooservices.com"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/jooservices/laravel-flickr/issues",
+        "source": "https://github.com/jooservices/laravel-flickr"
+    },
+    "require": {
+        "php": "^8.5",
+        "illuminate/contracts": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "jooservices/flickr": "^1.1"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.0",
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "phpmd/phpmd": "^2.13",
+        "phpstan/phpstan": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^11.0|^12.0",
+        "squizlabs/php_codesniffer": "^3.0|^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Jooservices\\LaravelFlickr\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Jooservices\\LaravelFlickr\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test:coverage": "vendor/bin/phpunit --coverage-text --coverage-clover build/coverage/clover.xml",
+        "lint:pint": "vendor/bin/pint --test",
+        "lint:pint:fix": "vendor/bin/pint",
+        "lint:phpstan": "XDEBUG_MODE=off vendor/bin/phpstan analyse --memory-limit=512M",
+        "lint:phpmd": "php -d error_reporting=6143 vendor/bin/phpmd src text phpmd.xml",
+        "lint:phpcs": "vendor/bin/phpcs src tests --standard=phpcs.xml",
+        "lint": [
+            "@lint:pint",
+            "@lint:phpcs",
+            "@lint:phpstan"
+        ],
+        "lint:all": [
+            "@lint",
+            "@lint:phpmd"
+        ],
+        "lint:fix": [
+            "@lint:pint:fix"
+        ],
+        "check": [
+            "@lint:all",
+            "@test"
+        ],
+        "ci": [
+            "@lint:all",
+            "@test:coverage"
+        ]
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Jooservices\\LaravelFlickr\\LaravelFlickrServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
