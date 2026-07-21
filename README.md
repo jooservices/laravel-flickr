@@ -16,6 +16,7 @@ Laravel integration **on top of** [`jooservices/flickr`](https://github.com/joos
 | Force-auth for connection clients | Spider / frontier |
 | Config credentials resolver | Catalog DB models / migrations |
 | Typed DTOs (`PagedResult`, tokens) | UI / Inertia / Blade |
+| OAuth 1.0a helper and optional rate-limit transport | Token persistence |
 
 Host apps own multi-page walks, persistence, retries, and product workflows.
 
@@ -58,6 +59,7 @@ php artisan vendor:publish --tag=laravel-flickr-config
 FLICKR_API_KEY=
 FLICKR_API_SECRET=
 FLICKR_DEFAULT_PER_PAGE=100
+FLICKR_RATE_LIMIT_ENABLED=true
 ```
 
 ## Usage
@@ -109,6 +111,24 @@ All helpers return `PagedResult` (or `TokenHealthResult`) and perform **one** HT
 $anon = app(FlickrClientFactory::class)->anonymousFromConfig();
 app(PeoplePhotosFetcher::class)->publicListPage($anon, $nsid, 1, 5);
 ```
+
+### OAuth connect
+
+`OAuthService` is synchronous and does not use a session or persist tokens. The host must store the request-token secret between requests and validate the callback token before calling `complete()`.
+
+```php
+use Jooservices\LaravelFlickr\OAuth\OAuthService;
+
+$begin = app(OAuthService::class)->begin($credentials);
+// Persist $begin->requestTokenSecret in the host session; redirect to $begin->authorizationUrl.
+$token = app(OAuthService::class)->complete($credentials, $callbackToken, $verifier, $requestTokenSecret);
+```
+
+`complete()` rejects an access-token response without a Flickr NSID.
+
+### Optional rate limiting
+
+The package binds `RedisRequestLimiter` by default when `FLICKR_RATE_LIMIT_ENABLED=true`; bind `RequestLimiterInterface` to a host implementation when policy differs. Wrap an SDK transport with `LimitingFlickrTransport`. The decorator never sleeps, queues work, logs tokens, or persists telemetry; it throws `RateLimitedException` for a local denial or HTTP 429.
 
 ## Stack
 

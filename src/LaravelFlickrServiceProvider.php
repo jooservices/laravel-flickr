@@ -14,6 +14,10 @@ use Jooservices\LaravelFlickr\Fetch\GalleriesFetcher;
 use Jooservices\LaravelFlickr\Fetch\PeoplePhotosFetcher;
 use Jooservices\LaravelFlickr\Fetch\PhotosetsFetcher;
 use Jooservices\LaravelFlickr\Fetch\TokenHealthProbe;
+use Jooservices\LaravelFlickr\OAuth\OAuthService;
+use Jooservices\LaravelFlickr\RateLimit\NullRequestLimiter;
+use Jooservices\LaravelFlickr\RateLimit\RedisRequestLimiter;
+use Jooservices\LaravelFlickr\RateLimit\RequestLimiterInterface;
 use Jooservices\LaravelFlickr\Support\ConfigCredentialsResolver;
 use Jooservices\LaravelFlickr\Support\QueryDefaults;
 
@@ -26,6 +30,16 @@ final class LaravelFlickrServiceProvider extends ServiceProvider
         $this->app->singleton(AppCredentialsResolverInterface::class, ConfigCredentialsResolver::class);
         $this->app->singleton(QueryDefaults::class);
         $this->app->singleton(FlickrClientFactory::class);
+        $this->app->singleton(OAuthService::class);
+        $this->app->singleton(
+            RequestLimiterInterface::class,
+            fn (): RequestLimiterInterface => filter_var(
+                config('laravel-flickr.rate_limit.enabled', true),
+                FILTER_VALIDATE_BOOL,
+            )
+                ? new RedisRequestLimiter()
+                : new NullRequestLimiter(),
+        );
         $this->app->bind(FlickrClientFactoryInterface::class, FlickrClientFactory::class);
 
         $this->app->singleton(ContactsFetcher::class);

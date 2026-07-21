@@ -16,6 +16,15 @@ return [
     'api_key' => env('FLICKR_API_KEY', ''),
     'api_secret' => env('FLICKR_API_SECRET', ''),
 
+    'rate_limit' => [
+        'enabled' => env('FLICKR_RATE_LIMIT_ENABLED', true),
+        'min_gap_ms' => (int) env('FLICKR_RATE_LIMIT_MIN_GAP_MS', 333),
+        'window_seconds' => (int) env('FLICKR_RATE_LIMIT_WINDOW_SECONDS', 3600),
+        'max_requests_per_hour' => (int) env('FLICKR_RATE_LIMIT_MAX_PER_HOUR', 3500),
+        'cooldown_seconds' => (int) env('FLICKR_RATE_LIMIT_COOLDOWN_SECONDS', 3600),
+        'key_prefix' => env('FLICKR_RATE_LIMIT_KEY_PREFIX', 'laravel-flickr:req'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Default page size for fetch helpers
