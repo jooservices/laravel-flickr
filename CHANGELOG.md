@@ -5,42 +5,30 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.2] - 2026-07-21
-
-### Fixed
-
-- Make combined min-gap and hourly quota claims atomic in Redis.
-
-## [1.1.1] - 2026-07-21
-
-### Fixed
-
-- Respect the host-provided OAuth callback URL when requesting a Flickr token.
-
-## [1.1.0] - 2026-07-21
+## [1.0.0] - 2026-07-22
 
 ### Added
 
-- OAuth 1.0a `OAuthService` with explicit host-owned request-token storage and required NSID.
-- OAuth begin result DTO, rate-limit contracts/DTOs, null limiter, and optional limiting transport.
+- Initial public release of `jooservices/laravel-flickr`.
+- `FlickrService` entry point with multi-app `connection($name)`, `as($nsid)`, and `anonymous()` scopes.
+- Namespace adapters: `Photos`, `People`, `Contacts`, `Photosets`, `Galleries`, `Favorites`, `Test`.
+- Shared `FlickrRequestJob` (sync by default, queue opt-in per call) with rate-limit middleware.
+- Multi Flickr API app storage in MongoDB (`flickr_apps`) with encrypted credentials.
+- OAuth 1.0a token storage per `(app_name, nsid)` with encrypted secrets (`flickr_tokens`).
+- OAuth CLI (`flickr:app:add`, `flickr:oauth:*`), HTTP callback + FormRequest validation, encrypted Redis pending state.
+- Redis rate limiter (hourly quota, min-gap, cooldown) via `LimitingFlickrTransport`; never sleeps.
+- Runtime settings and rate-limit thresholds via `jooservices/laravel-config` (`flickr.*` flat keys).
+- Package env config limited to OAuth callback path (`FLICKR_OAUTH_CALLBACK_PATH`).
+- Lifecycle events + listeners for activity logging, event sourcing, and optional Mongo persistence.
+- Standalone `ActivityLogService` / `StoredEventService` (not exposed on `FlickrService`).
+- Doctor, index install, and quality tooling (Pint, PHPCS, PHPStan max, PHPMD, PHPUnit).
+- Rate-limit connection identity hashed (SHA-256 of API key); OAuth callback throttled.
+- Shared test infra images (`mongo:8.3.4`, `redis:8.8.0-alpine`) — no package-local mongo:7/redis:7 layers.
 
-## [1.0.0] - 2026-07-20
+### Dependencies
 
-### Added
-
-- Initial release: Laravel integration on top of `jooservices/flickr`.
-- `FlickrClientFactory` for authenticated (force-auth) and anonymous SDK clients.
-- Config credentials resolver (`laravel-flickr.php` + `FLICKR_API_*` env).
-- Sync page fetch helpers: contacts, people photos, photosets, galleries, favorites.
-- `TokenHealthProbe` for `flickr.test.login`.
-- DTOs: `AppCredentials`, `OAuthToken`, `PageRequest`, `PagedResult`, `TokenHealthResult`.
-- PHPUnit tests, Pint/PHPCS/PHPStan/PHPMD, GitHub CI + release workflows.
-
-### Notes
-
-- No queues, crawl engine, spider, catalog models, or UI (host responsibilities).
+- PHP 8.5+, Laravel illuminate `^13.0`
+- `jooservices/flickr` ^2.0, ecosystem packages, `mongodb/laravel-mongodb`
+- Guzzle 8 via Composer alias (Laravel still declares Guzzle 7)
 
 [1.0.0]: https://github.com/jooservices/laravel-flickr/releases/tag/v1.0.0
-[1.1.0]: https://github.com/jooservices/laravel-flickr/releases/tag/v1.1.0
-[1.1.1]: https://github.com/jooservices/laravel-flickr/releases/tag/v1.1.1
-[1.1.2]: https://github.com/jooservices/laravel-flickr/releases/tag/v1.1.2

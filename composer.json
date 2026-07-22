@@ -1,13 +1,14 @@
 {
     "name": "jooservices/laravel-flickr",
-    "description": "Laravel integration on top of jooservices/flickr: account-bound clients and sync page-level fetch helpers. No queues, no crawl engine, no UI.",
+    "description": "Laravel Flickr integration: FlickrService entry point, adapters, opt-in queue, Mongo persistence, OAuth, rate limits, and ecosystem logging/events.",
     "type": "library",
     "keywords": [
         "laravel",
         "flickr",
         "oauth",
         "api",
-        "sdk"
+        "sdk",
+        "mongodb"
     ],
     "license": "MIT",
     "authors": [
@@ -22,29 +23,41 @@
     },
     "require": {
         "php": "^8.5",
-        "illuminate/contracts": "^11.0|^12.0|^13.0",
-        "illuminate/redis": "^11.0|^12.0|^13.0",
-        "illuminate/support": "^11.0|^12.0|^13.0",
-        "jooservices/flickr": "^1.1"
+        "guzzlehttp/guzzle": "8.0.0 as 7.9.3",
+        "guzzlehttp/promises": "3.0.0 as 2.5.1",
+        "illuminate/bus": "^13.0",
+        "illuminate/contracts": "^13.0",
+        "illuminate/queue": "^13.0",
+        "illuminate/redis": "^13.0",
+        "illuminate/support": "^13.0",
+        "jooservices/exceptions": "^0.5",
+        "jooservices/flickr": "^2.0",
+        "jooservices/laravel-config": "^1.4",
+        "jooservices/laravel-controller": "^1.4",
+        "jooservices/laravel-events": "^1.4",
+        "jooservices/laravel-logging": "^1.2",
+        "jooservices/laravel-repository": "^1.4",
+        "mongodb/laravel-mongodb": "^5.7"
     },
     "require-dev": {
+        "dg/bypass-finals": "^1.9",
         "laravel/pint": "^1.0",
-        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "orchestra/testbench": "^11.0",
         "phpmd/phpmd": "^2.13",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-strict-rules": "^2.0",
-        "phpunit/phpunit": "^11.0|^12.0",
+        "phpunit/phpunit": "^12.0|^13.0",
         "squizlabs/php_codesniffer": "^3.0|^4.0"
     },
     "autoload": {
         "psr-4": {
-            "Jooservices\\LaravelFlickr\\": "src/"
+            "JOOservices\\LaravelFlickr\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Jooservices\\LaravelFlickr\\Tests\\": "tests/"
+            "JOOservices\\LaravelFlickr\\Tests\\": "tests/"
         }
     },
     "scripts": {
@@ -77,12 +90,15 @@
         ]
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Jooservices\\LaravelFlickr\\LaravelFlickrServiceProvider"
+                "JOOservices\\LaravelFlickr\\LaravelFlickrServiceProvider"
             ]
         }
     },

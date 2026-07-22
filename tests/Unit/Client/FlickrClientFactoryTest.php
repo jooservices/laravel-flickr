@@ -2,44 +2,102 @@
 
 declare(strict_types=1);
 
-namespace Jooservices\LaravelFlickr\Tests\Unit\Client;
+namespace JOOservices\LaravelFlickr\Tests\Unit\Client;
 
-use JOOservices\Flickr\Client\FakeFlickrTransport;
+use Illuminate\Support\Facades\Cache;
+use JOOservices\Client\Client\ClientBuilder;
 use JOOservices\Flickr\Flickr;
-use Jooservices\LaravelFlickr\Client\FlickrClientFactory;
-use Jooservices\LaravelFlickr\Dto\AppCredentials;
-use Jooservices\LaravelFlickr\Dto\OAuthToken;
-use Jooservices\LaravelFlickr\Exceptions\MissingCredentialsException;
-use Jooservices\LaravelFlickr\Tests\TestCase;
+use JOOservices\LaravelConfig\Facades\Config;
+use JOOservices\LaravelFlickr\Client\FlickrClientFactory;
+use JOOservices\LaravelFlickr\Dto\AppCredentials;
+use JOOservices\LaravelFlickr\Exceptions\MissingCredentialsException;
+use JOOservices\LaravelFlickr\Tests\Support\FlickrNsid;
+use JOOservices\LaravelFlickr\Tests\Support\NonPsr16CacheStore;
+use JOOservices\LaravelFlickr\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionClass;
 
 final class FlickrClientFactoryTest extends TestCase
 {
     #[Test]
-    public function it_builds_authenticated_and_anonymous_clients(): void
+    public function it_builds_authenticated_and_anonymous_clients_against_client_fake(): void
     {
-        $factory = app(FlickrClientFactory::class);
-        $credentials = new AppCredentials('key', 'secret');
-        $token = new OAuthToken('tok', 'sec', '12037949629@N01');
-        $transport = FakeFlickrTransport::new()->pushJson(['stat' => 'ok', 'user' => ['id' => '12037949629@N01']]);
+        $this->requiresMongoDb();
+        $this->clearFlickrCollections();
 
-        $auth = $factory->authenticated($credentials, $token, $transport);
-        $anon = $factory->anonymous($credentials, FakeFlickrTransport::new());
+        $this->fakeFlickrResponses([
+            ['user' => ['id' => FlickrNsid::fake()]],
+        ]);
+
+        $factory = app(FlickrClientFactory::class);
+        $credentials = new AppCredentials(fake()->sha1(), fake()->sha1());
+        $token = $this->storeToken();
+
+        $auth = $factory->authenticated($credentials, $token);
+        $anon = $factory->anonymous($credentials);
 
         $this->assertInstanceOf(Flickr::class, $auth);
         $this->assertInstanceOf(Flickr::class, $anon);
 
-        $fromConfig = $factory->authenticatedFromConfig($token, FakeFlickrTransport::new());
-        $this->assertInstanceOf(Flickr::class, $fromConfig);
+        $response = $auth->raw()->call('flickr.test.login', []);
+        $this->assertTrue($response->ok);
+        $this->assertNotEmpty(ClientBuilder::recorded());
     }
 
     #[Test]
-    public function it_fails_when_config_credentials_missing(): void
+    public function it_disables_sdk_rate_limiting_and_wires_cache_ttl(): void
     {
-        config(['laravel-flickr.api_key' => '', 'laravel-flickr.api_secret' => '']);
-        $factory = app(FlickrClientFactory::class);
+        Config::fake([
+            'flickr' => [
+                'default_connection' => 'default',
+                'cache_ttl_seconds' => 120,
+                'rate_limit_enabled' => false,
+                'queue_name' => 'flickr',
+                'logging_enabled' => true,
+                'events_enabled' => true,
+                'default_per_page' => 50,
+            ],
+        ]);
+        $this->app->forgetInstance(FlickrClientFactory::class);
 
+        $factory = app(FlickrClientFactory::class);
+        $ref = new ReflectionClass($factory);
+        $method = $ref->getMethod('flickrConfig');
+        $method->setAccessible(true);
+        $config = $method->invoke($factory, new AppCredentials('key', 'secret'));
+
+        $this->assertFalse($config->enableRateLimit);
+        $this->assertSame(120, $config->publicCacheTtlSeconds);
+    }
+
+    #[Test]
+    public function it_fails_when_app_credentials_are_empty(): void
+    {
         $this->expectException(MissingCredentialsException::class);
-        $factory->anonymousFromConfig();
+        new AppCredentials('', 'secret');
+    }
+
+    #[Test]
+    public function it_requires_psr16_cache_store(): void
+    {
+        Config::fake([
+            'flickr' => [
+                'default_connection' => 'default',
+                'cache_store' => 'array',
+                'cache_ttl_seconds' => 60,
+                'rate_limit_enabled' => false,
+                'queue_name' => 'flickr',
+            ],
+        ]);
+        $this->app->forgetInstance(FlickrClientFactory::class);
+
+        Cache::shouldReceive('store')
+            ->with('array')
+            ->andReturn(new NonPsr16CacheStore());
+
+        $factory = app(FlickrClientFactory::class);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('PSR-16');
+        $factory->anonymous(new AppCredentials('k', 's'));
     }
 }

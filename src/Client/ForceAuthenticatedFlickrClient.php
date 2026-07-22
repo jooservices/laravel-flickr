@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Jooservices\LaravelFlickr\Client;
+namespace JOOservices\LaravelFlickr\Client;
 
 use JOOservices\Flickr\Contracts\Client\FlickrClientContract;
 use JOOservices\Flickr\DTO\Common\ApiResponseData;

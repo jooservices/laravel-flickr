@@ -1,0 +1,41 @@
+# Optional local helpers — reuses the same image tags as XFlickr / barista / stories-builder
+# so Docker does not pull extra mongo:7 / redis:7 layers.
+#
+# Preferred (saves containers + volumes): use a host Mongo/Redis you already run
+# (e.g. xflickr-test-mongodb-1, barista-mongodb) on 127.0.0.1:27017 / :6379.
+#
+# Only start this stack when nothing is listening on those ports:
+#   docker compose up -d
+#
+# Images (must match ecosystem cache):
+#   mongo:8.3.4
+#   redis:8.8.0-alpine
+
+name: jooservices-shared-infra
+
+services:
+  mongodb:
+    image: mongo:8.3.4
+    ports:
+      - "27017:27017"
+    # No named volume — ephemeral test data; avoids another multi-GB volume per package.
+    tmpfs:
+      - /data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8.8.0-alpine
+    ports:
+      - "6379:6379"
+    # Ephemeral; rate-limit / OAuth pending keys are short-lived anyway.
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

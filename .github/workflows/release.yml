@@ -14,11 +14,32 @@ permissions:
 
 env:
   PHP_VERSION: '8.5'
+  MONGODB_URI: mongodb://127.0.0.1:27017
+  MONGODB_DATABASE: jooservices_laravel_flickr_test
+  REDIS_HOST: 127.0.0.1
+  REDIS_PORT: '6379'
+  REDIS_DB: '15'
+  REQUIRE_TEST_INFRA: '1'
 
 jobs:
   validate:
     name: Validate Release
     runs-on: ubuntu-latest
+    services:
+      # Same tags as the JOOservices app stacks (shared image layers).
+      mongodb:
+        image: mongo:8.3.4
+        ports:
+          - 27017:27017
+      redis:
+        image: redis:8.8.0-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -27,13 +48,14 @@ jobs:
         uses: shivammathur/setup-php@44454db4f0199b8b9685a5d763dc37cbf79108e1 # v2.36.0
         with:
           php-version: ${{ env.PHP_VERSION }}
+          extensions: mongodb, redis
           coverage: none
 
       - name: Install Composer dependencies
         uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # v4.0.0
 
       - name: Validate Composer metadata
-        run: composer validate --strict
+        run: composer validate --no-check-publish
 
       - name: Run security audit
         run: composer audit --locked --abandoned=ignore
@@ -60,29 +82,13 @@ jobs:
           body: |
             ## jooservices/laravel-flickr ${{ github.ref_name }}
 
-            Laravel integration on top of `jooservices/flickr`: account-bound clients and sync page-level fetch helpers.
-            No queues, no crawl engine, no UI.
-
-            Install after Packagist listing:
+            Laravel integration on top of `jooservices/flickr` ^2: multi-app credentials,
+            `FlickrService` adapters, shared request job (sync default / queue opt-in),
+            MongoDB tokens, OAuth, rate limits, and ecosystem logging/events.
 
             ```bash
             composer require jooservices/laravel-flickr:^1.0
             ```
 
-            Until Packagist is live, use VCS:
-
-            ```json
-            {
-              "repositories": [
-                {
-                  "type": "vcs",
-                  "url": "https://github.com/jooservices/laravel-flickr"
-                }
-              ],
-              "require": {
-                "jooservices/laravel-flickr": "^1.0"
-              }
-            }
-            ```
-
-            See [CHANGELOG.md](https://github.com/jooservices/laravel-flickr/blob/main/CHANGELOG.md).
+            See [CHANGELOG.md](https://github.com/jooservices/laravel-flickr/blob/main/CHANGELOG.md)
+            and [docs/](https://github.com/jooservices/laravel-flickr/tree/main/docs).

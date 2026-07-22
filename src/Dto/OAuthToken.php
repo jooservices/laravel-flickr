@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Jooservices\LaravelFlickr\Dto;
+namespace JOOservices\LaravelFlickr\Dto;
 
 use InvalidArgumentException;
 use JOOservices\Flickr\DTO\Auth\AccessTokenData;

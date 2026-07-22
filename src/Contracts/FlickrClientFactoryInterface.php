@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Jooservices\LaravelFlickr\Contracts;
+namespace JOOservices\LaravelFlickr\Contracts;
 
 use JOOservices\Flickr\Contracts\Client\FlickrTransportContract;
 use JOOservices\Flickr\Flickr;
-use Jooservices\LaravelFlickr\Dto\AppCredentials;
-use Jooservices\LaravelFlickr\Dto\OAuthToken;
+use JOOservices\LaravelFlickr\Dto\AppCredentials;
+use JOOservices\LaravelFlickr\Dto\OAuthToken;
 
 /**
  * Sole construction site for SDK clients used by this package.
@@ -32,17 +32,4 @@ interface FlickrClientFactoryInterface
         AppCredentials $credentials,
         ?FlickrTransportContract $transport = null,
     ): Flickr;
-
-    /**
-     * Authenticated client using credentials from the configured resolver.
-     */
-    public function authenticatedFromConfig(
-        OAuthToken $token,
-        ?FlickrTransportContract $transport = null,
-    ): Flickr;
-
-    /**
-     * Anonymous client using credentials from the configured resolver.
-     */
-    public function anonymousFromConfig(?FlickrTransportContract $transport = null): Flickr;
 }

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Jooservices\LaravelFlickr\Tests\Unit\Dto;
+namespace JOOservices\LaravelFlickr\Tests\Unit\Dto;
 
-use Jooservices\LaravelFlickr\Dto\AppCredentials;
-use Jooservices\LaravelFlickr\Exceptions\MissingCredentialsException;
-use Jooservices\LaravelFlickr\Tests\TestCase;
+use JOOservices\LaravelFlickr\Dto\AppCredentials;
+use JOOservices\LaravelFlickr\Exceptions\MissingCredentialsException;
+use JOOservices\LaravelFlickr\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
 final class AppCredentialsTest extends TestCase

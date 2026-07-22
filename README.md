@@ -3,139 +3,129 @@
 [![PHP Version](https://img.shields.io/badge/PHP-8.5%2B-blue.svg)](https://www.php.net/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Laravel integration **on top of** [`jooservices/flickr`](https://github.com/jooservices/flickr): account-bound SDK clients and **sync, page-level** fetch helpers (contacts, people photos, photosets, galleries, favorites, token health).
+Laravel integration **on top of** [`jooservices/flickr`](https://github.com/jooservices/flickr): multi-app credentials, `FlickrService` entry point, domain adapters, shared request job (sync default / queue opt-in), MongoDB tokens + optional persistence, OAuth CLI/callback, rate limits, and ecosystem logging/events.
 
-**Package name:** `jooservices/laravel-flickr`
+**Package name:** `jooservices/laravel-flickr`  
+**Namespace:** `JOOservices\LaravelFlickr`  
+**Version:** 1.0.0
 
 ## Charter
 
 | In scope | Out of scope |
 |---|---|
-| Client factory (authenticated / anonymous) | Queues / Horizon / jobs |
-| Page-level fetch helpers | Crawl run / target state machine |
-| Force-auth for connection clients | Spider / frontier |
-| Config credentials resolver | Catalog DB models / migrations |
-| Typed DTOs (`PagedResult`, tokens) | UI / Inertia / Blade |
-| OAuth 1.0a helper and optional rate-limit transport | Token persistence |
+| `FlickrService` + namespace adapters | Multi-page walks inside adapters |
+| Shared `FlickrRequestJob` (sync or queued) | Crawl run / spider frontier |
+| Multi Flickr API apps + tokens in MongoDB | Host UI / Inertia / Blade |
+| OAuth 1.0a (CLI + HTTP callback) | Sleeping for rate limits |
+| Rate-limit middleware + status probe | Exposing `activities` / `logs` / `events` on `FlickrService` |
+| Listeners for logging, events, persistence | |
 
-Host apps own multi-page walks, persistence, retries, and product workflows.
+Hosts own multi-page orchestration and product workflows. Resolve `ActivityLogService` / `StoredEventService` from the container when needed.
 
 ## Principles
 
 - SOLID, DRY, KISS, YAGNI
-- Patterns only when justified (Factory, Decorator, Strategy via fetchers)
-- Layering for hosts: `Controller → FormRequest → Service → (this package) → Repository`
-- No god managers, no queue side effects
+- Patterns only when justified (Factory, Decorator, thin adapters)
+- Host layering: `Controller → FormRequest → Service → (this package) → Repository`
 
 ## Install
 
 ```bash
-composer require jooservices/laravel-flickr
+composer require jooservices/laravel-flickr:^1.0
 ```
 
-Until Packagist is live, use VCS:
+Requires PHP 8.5+, Laravel illuminate `^13.0`, MongoDB, and Redis (when rate limiting / OAuth pending are used).
 
-```json
-{
-  "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/jooservices/laravel-flickr"
-    }
-  ],
-  "require": {
-    "jooservices/laravel-flickr": "^1.0"
-  }
-}
-```
-
-Publish config (optional):
+Publish config (optional — only OAuth callback path):
 
 ```bash
 php artisan vendor:publish --tag=laravel-flickr-config
 ```
 
 ```env
-FLICKR_API_KEY=
-FLICKR_API_SECRET=
-FLICKR_DEFAULT_PER_PAGE=100
-FLICKR_RATE_LIMIT_ENABLED=true
+FLICKR_OAUTH_CALLBACK_PATH=api/v1/oauth/flickr/callback
+```
+
+All other settings live in `jooservices/laravel-config` under the `flickr` group (flat `group.key` paths). See [docs/02-user-guide/06-config-reference.md](docs/02-user-guide/06-config-reference.md).
+
+Register at least one Flickr API app, then authorize accounts:
+
+```bash
+php artisan flickr:app:add default --api-key=… --api-secret=…
+php artisan flickr:oauth:authorize default
+php artisan flickr:install-indexes
+php artisan flickr:doctor
 ```
 
 ## Usage
 
 ```php
-use Jooservices\LaravelFlickr\Client\FlickrClientFactory;
-use Jooservices\LaravelFlickr\Dto\AppCredentials;
-use Jooservices\LaravelFlickr\Dto\OAuthToken;
-use Jooservices\LaravelFlickr\Fetch\ContactsFetcher;
+use JOOservices\LaravelFlickr\Service\FlickrService;
 
-$credentials = new AppCredentials($apiKey, $apiSecret);
-$token = OAuthToken::fromArray([
-    'oauth_token' => $oauthToken,
-    'oauth_token_secret' => $oauthSecret,
-    'user_nsid' => $nsid,
-]);
+$response = app(FlickrService::class)
+    ->as($nsid) // uses flickr.default_connection
+    ->contacts
+    ->getList(['per_page' => 100]);
 
-$client = app(FlickrClientFactory::class)->authenticated($credentials, $token);
-// or: ->authenticatedFromConfig($token);
-
-$page = app(ContactsFetcher::class)->listPage($client, page: 1, perPage: 100);
-
-if ($page->ok) {
-    foreach ($page->items as $contact) {
-        // host persists / enqueues next work
-    }
-    if ($page->hasMorePages()) {
-        // host schedules page + 1 — never inside this package
-    }
-}
+// Explicit API app / connection:
+app(FlickrService::class)
+    ->connection('backup')
+    ->as($nsid)
+    ->photos
+    ->getInfo($photoId);
 ```
 
-### Fetch helpers
+Anonymous probes (still need a registered app for the API key):
 
-| Class | Methods |
+```php
+app(FlickrService::class)
+    ->anonymous()
+    ->people
+    ->getPublicPhotos($nsid, ['per_page' => 5]);
+```
+
+### Adapters
+
+| Adapter | Typical methods |
 |---|---|
-| `ContactsFetcher` | `listPage`, `publicListPage` |
-| `PeoplePhotosFetcher` | `listPage`, `publicListPage` |
-| `PhotosetsFetcher` | `listPage`, `photosPage` |
-| `GalleriesFetcher` | `listPage`, `photosPage` |
-| `FavoritesFetcher` | `listPage` |
-| `TokenHealthProbe` | `probe` |
+| `Photos` | photo queries / info |
+| `People` | `getPublicPhotos`, profile helpers |
+| `Contacts` | `getList`, public list |
+| `Photosets` | `getList`, photos page |
+| `Galleries` | `getList`, photos page |
+| `Favorites` | `getList` |
+| `Test` | `login` |
 
-All helpers return `PagedResult` (or `TokenHealthResult`) and perform **one** HTTP request.
+Each adapter method performs **one** Flickr call (optionally `$queued = true`).
 
-### Anonymous probes
-
-```php
-$anon = app(FlickrClientFactory::class)->anonymousFromConfig();
-app(PeoplePhotosFetcher::class)->publicListPage($anon, $nsid, 1, 5);
-```
-
-### OAuth connect
-
-`OAuthService` is synchronous and does not use a session or persist tokens. The host must store the request-token secret between requests and validate the callback token before calling `complete()`.
+### Activity / events (not on FlickrService)
 
 ```php
-use Jooservices\LaravelFlickr\OAuth\OAuthService;
+use JOOservices\LaravelFlickr\Service\ActivityLogService;
+use JOOservices\LaravelFlickr\Service\StoredEventService;
 
-$begin = app(OAuthService::class)->begin($credentials);
-// Persist $begin->requestTokenSecret in the host session; redirect to $begin->authorizationUrl.
-$token = app(OAuthService::class)->complete($credentials, $callbackToken, $verifier, $requestTokenSecret);
+app(ActivityLogService::class); // laravel-logging backed
+app(StoredEventService::class); // laravel-events backed
 ```
 
-`complete()` rejects an access-token response without a Flickr NSID.
+### OAuth
 
-### Optional rate limiting
+Package owns pending-authorization storage, CLI (`flickr:app:add`, `flickr:oauth:*`), and the HTTP callback. Apps (`api_key` / `api_secret`) and tokens land in MongoDB (encrypted at rest).
 
-The package binds `RedisRequestLimiter` by default when `FLICKR_RATE_LIMIT_ENABLED=true`; bind `RequestLimiterInterface` to a host implementation when policy differs. Wrap an SDK transport with `LimitingFlickrTransport`. The decorator never sleeps, queues work, logs tokens, or persists telemetry; it throws `RateLimitedException` for a local denial or HTTP 429.
+### Rate limiting
+
+Default Redis limiter when enabled via laravel-config. Denials throw `RateLimitedException` (no sleep). Inspect quota with `FlickrService::rateLimitStatus()` (scoped to the active connection’s API key).
+
+## Documentation
+
+Full guides: [docs/README.md](docs/README.md) — architecture diagrams, models, flows, config, testing.
 
 ## Stack
 
 ```text
-Host app (queues, spider, catalog)
+Host app (orchestration, UI)
         ↓
-jooservices/laravel-flickr   ← this package (sync I/O helpers)
+jooservices/laravel-flickr   ← FlickrService, adapters, OAuth, limits, listeners
         ↓
 jooservices/flickr           ← SDK
 ```
@@ -143,19 +133,14 @@ jooservices/flickr           ← SDK
 ## Quality
 
 ```bash
+# Prefer an already-running shared Mongo/Redis (mongo:8.3.4 + redis:8.8.0-alpine).
+# Optional: docker compose up -d  (same image tags only; tmpfs, no extra volumes)
 composer test
 composer lint
-composer lint:all
 composer check
-composer ci
 ```
 
-## Docs
-
-- [Architecture overview](docs/00-architecture/01-overview.md)
-- [Installation](docs/01-getting-started/01-installation.md)
-- [Quick start](docs/01-getting-started/02-quick-start.md)
-- [Coding standards](docs/04-development/02-coding-standards.md)
+See [docs/04-development/02-testing.md](docs/04-development/02-testing.md) and the [quality deep dive](docs/04-development/03-quality-deep-dive.md).
 
 ## License
 

@@ -2,22 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Jooservices\LaravelFlickr\Exceptions;
+namespace JOOservices\LaravelFlickr\Exceptions;
 
-use RuntimeException;
+use JOOservices\Exceptions\Base\AbstractJOOLogicException;
 
-final class MissingCredentialsException extends RuntimeException
+final class MissingCredentialsException extends AbstractJOOLogicException
 {
     public static function emptyAppCredentials(): self
     {
         return new self('Flickr app API key and secret are required.');
-    }
-
-    public static function configNotSet(): self
-    {
-        return new self(
-            'Flickr app credentials are not configured. Set FLICKR_API_KEY / FLICKR_API_SECRET '
-            .'or pass AppCredentials explicitly.',
-        );
     }
 }

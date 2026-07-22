@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Jooservices\LaravelFlickr\Tests\Unit\Dto;
+namespace JOOservices\LaravelFlickr\Tests\Unit\Dto;
 
 use InvalidArgumentException;
-use Jooservices\LaravelFlickr\Dto\OAuthToken;
-use Jooservices\LaravelFlickr\Tests\TestCase;
+use JOOservices\LaravelFlickr\Dto\OAuthToken;
+use JOOservices\LaravelFlickr\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
 final class OAuthTokenTest extends TestCase
@@ -40,5 +40,27 @@ final class OAuthTokenTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
         new OAuthToken('', 'secret');
+    }
+
+    #[Test]
+    public function it_rejects_invalid_json(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        OAuthToken::fromJson('not-json');
+    }
+
+    #[Test]
+    public function from_array_ignores_non_string_and_empty_optional_fields(): void
+    {
+        $token = OAuthToken::fromArray([
+            'oauth_token' => 't',
+            'oauth_token_secret' => 's',
+            'user_nsid' => 123,
+            'username' => '',
+            'fullname' => null,
+        ]);
+
+        $this->assertNull($token->userNsid);
+        $this->assertNull($token->username);
     }
 }

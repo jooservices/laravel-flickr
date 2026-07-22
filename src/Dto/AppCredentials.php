@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Jooservices\LaravelFlickr\Dto;
+namespace JOOservices\LaravelFlickr\Dto;
 
-use Jooservices\LaravelFlickr\Exceptions\MissingCredentialsException;
+use JOOservices\LaravelFlickr\Exceptions\MissingCredentialsException;
 
 /**
  * Flickr application API key + secret (not a user OAuth token).

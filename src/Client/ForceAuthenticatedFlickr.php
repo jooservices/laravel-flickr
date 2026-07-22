@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Jooservices\LaravelFlickr\Client;
+namespace JOOservices\LaravelFlickr\Client;
 
 use JOOservices\Flickr\Contracts\Client\FlickrClientContract;
 use JOOservices\Flickr\Flickr;
@@ -24,8 +24,9 @@ final class ForceAuthenticatedFlickr
 
         $property = new ReflectionProperty(RawApiService::class, 'client');
         $inner = $property->getValue($raw);
-        if (! $inner instanceof FlickrClientContract) {
-            throw new RuntimeException('Unexpected Flickr client; cannot force authentication.');
+        // RawApiService::$client is typed FlickrClientContract — invalid values cannot be set at runtime.
+        if (! $inner instanceof FlickrClientContract) { // @codeCoverageIgnore
+            throw new RuntimeException('Unexpected Flickr client; cannot force authentication.'); // @codeCoverageIgnore
         }
 
         if ($inner instanceof ForceAuthenticatedFlickrClient) {

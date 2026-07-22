@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Jooservices\LaravelFlickr\RateLimit;
+namespace JOOservices\LaravelFlickr\RateLimit;
 
 final readonly class Permit
 {
@@ -10,5 +10,7 @@ final readonly class Permit
         public bool $acquired,
         public int $retryAfterSeconds = 0,
         public ?DenyReason $reason = null,
+        public ?int $remaining = null,
+        public ?int $limit = null,
     ) {}
 }
