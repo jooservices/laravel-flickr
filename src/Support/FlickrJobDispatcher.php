@@ -8,6 +8,7 @@ use JOOservices\Flickr\DTO\Common\ApiResponseData;
 use JOOservices\LaravelFlickr\Contracts\RuntimeSettingsResolverInterface;
 use JOOservices\LaravelFlickr\Jobs\FlickrRequestJob;
 use JOOservices\LaravelFlickr\Jobs\Middleware\FlickrRateLimitMiddleware;
+use JOOservices\LaravelFlickr\Jobs\UniqueFlickrRequestJob;
 
 /**
  * Shared sync/queue dispatch for adapters and FlickrService::call().
@@ -26,12 +27,24 @@ final class FlickrJobDispatcher
         bool $queued,
         bool $bypassCache,
         bool $applyDefaultPerPage = false,
+        bool $unique = false,
+        ?string $correlationId = null,
     ): ?ApiResponseData {
+        $runtime = app(RuntimeSettingsResolverInterface::class);
+
         if ($applyDefaultPerPage && ! array_key_exists('per_page', $params)) {
-            $params['per_page'] = app(RuntimeSettingsResolverInterface::class)->defaultPerPage();
+            $params['per_page'] = $runtime->defaultPerPage();
         }
 
-        $job = new FlickrRequestJob($namespace, $method, $appName, $nsid, $params, $bypassCache, $queued);
+        $job = $unique
+            ? new UniqueFlickrRequestJob($namespace, $method, $appName, $nsid, $params, $bypassCache, $queued, $correlationId)
+            : new FlickrRequestJob($namespace, $method, $appName, $nsid, $params, $bypassCache, $queued, $correlationId);
+
+        $connection = $runtime->queueConnection();
+        if ($connection !== null) {
+            $job->onConnection($connection);
+        }
+        $job->onQueue($runtime->queueName());
 
         if ($queued) {
             dispatch($job);

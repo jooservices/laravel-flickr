@@ -14,6 +14,7 @@ use JOOservices\LaravelFlickr\Adapters\Galleries;
 use JOOservices\LaravelFlickr\Adapters\People;
 use JOOservices\LaravelFlickr\Adapters\Photos;
 use JOOservices\LaravelFlickr\Adapters\Photosets;
+use JOOservices\LaravelFlickr\Adapters\Tags;
 use JOOservices\LaravelFlickr\Adapters\Test;
 use JOOservices\LaravelFlickr\Contracts\FlickrClientFactoryInterface;
 use JOOservices\LaravelFlickr\Contracts\RuntimeSettingsResolverInterface;
@@ -25,6 +26,7 @@ use JOOservices\LaravelFlickr\RateLimit\RateLimitStatus;
 use JOOservices\LaravelFlickr\RateLimit\RequestLimiterInterface;
 use JOOservices\LaravelFlickr\Repositories\AppRepository;
 use JOOservices\LaravelFlickr\Repositories\TokenRepository;
+use JOOservices\LaravelFlickr\Support\FlickrAdapterRegistry;
 use JOOservices\LaravelFlickr\Support\FlickrJobDispatcher;
 use JOOservices\LaravelFlickr\Support\RateLimitConnectionKey;
 use LogicException;
@@ -37,6 +39,7 @@ use LogicException;
  * @property-read Galleries $galleries
  * @property-read Favorites $favorites
  * @property-read Test $test
+ * @property-read Tags $tags
  */
 final class FlickrService
 {
@@ -52,6 +55,7 @@ final class FlickrService
         private readonly TokenRepository $tokens,
         private readonly AppRepository $apps,
         private readonly RuntimeSettingsResolverInterface $runtimeSettings,
+        private readonly RequestLimiterInterface $limiter,
     ) {}
 
     public function connection(string $name): self
@@ -99,9 +103,8 @@ final class FlickrService
             throw new LogicException('Call ->as($nsid) or ->anonymous() before accessing an adapter.');
         }
 
-        $class = 'JOOservices\\LaravelFlickr\\Adapters\\'.ucfirst($name);
-
-        if (! class_exists($class) || ! is_subclass_of($class, AbstractFlickrAdapter::class)) {
+        $class = FlickrAdapterRegistry::classFor($name);
+        if ($class === null) {
             throw new InvalidArgumentException("Unknown Flickr adapter namespace [{$name}].");
         }
 
@@ -118,10 +121,19 @@ final class FlickrService
     }
 
     /**
+     * Escape hatch for any Flickr method (including namespaces without a first-class adapter).
+     *
      * @param  array<string, mixed>  $params
      */
-    public function call(string $namespace, string $method, array $params = [], bool $queued = false, bool $bypassCache = false): mixed
-    {
+    public function call(
+        string $namespace,
+        string $method,
+        array $params = [],
+        bool $queued = false,
+        bool $bypassCache = false,
+        bool $unique = false,
+        ?string $correlationId = null,
+    ): mixed {
         if (! $this->scoped) {
             throw new LogicException('Call ->as($nsid) or ->anonymous() before calling call().');
         }
@@ -134,6 +146,8 @@ final class FlickrService
             $params,
             $queued,
             $bypassCache,
+            unique: $unique,
+            correlationId: $correlationId,
         );
     }
 
@@ -161,7 +175,7 @@ final class FlickrService
     {
         $app = $this->requireApp($this->resolvedConnection());
 
-        return app(RequestLimiterInterface::class)->status(RateLimitConnectionKey::fromApiKey($app->apiKey));
+        return $this->limiter->status(RateLimitConnectionKey::fromApiKey($app->apiKey));
     }
 
     private function resolvedConnection(): string

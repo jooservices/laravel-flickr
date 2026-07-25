@@ -18,5 +18,6 @@ final class FlickrCallFailed
         public readonly bool $queued,
         public readonly string $exceptionClass,
         public readonly string $exceptionMessage,
+        public readonly ?string $correlationId = null,
     ) {}
 }

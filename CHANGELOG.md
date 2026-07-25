@@ -5,6 +5,42 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.1.0] - 2026-07-25
+
+### Added
+
+- `Tags` adapter: `getListUser`, `getListUserPopular`, `getListUserRaw`, `getHotList`, `getListPhoto`, `getRelated`.
+- `flickr:rate-limit:status` Artisan command for per-connection limiter status.
+- `JOOservices\LaravelFlickr\Facades\Flickr` facade with package alias discovery (`Flickr`) and container alias `flickr`.
+- `FlickrCallService` — single-call execution + lifecycle events (job is a thin shell).
+- `OAuthCompletionService` — shared OAuth complete path for CLI and HTTP callback.
+- `FlickrAdapterRegistry` — single namespace → adapter class map for service + persist listener.
+- `UniqueFlickrRequestJob` / `call(..., unique: true)` — opt-in 60s queue uniqueness (default job is **not** unique).
+- `MongoBulkUpsert` for page-level photo/contact/group/favorite persistence.
+- `PersistenceReconcileService` — soft-remove stale rows and emit domain removal events.
+- Optional call `correlationId` on jobs / lifecycle events; richer failure logs.
+- Rate-limit approaching transition state is cache-backed (multi-worker safe).
+
+### Changed
+
+- Removed Guzzle/promises version aliases; require `jooservices/client` `^2.1` (Guzzle 7.10+ or 8).
+- `FlickrService` constructor injects `RequestLimiterInterface` (no `app()` in `rateLimitStatus()`).
+- `FlickrRequestJob` constructor is side-effect free; queue connection/name applied in `FlickrJobDispatcher`.
+- `RedisRequestLimiter::status()` pipelines read commands after window prune (WITHSCORES normalized).
+- OAuth callback returns structured 404 when the pending app is missing.
+- Repositories no longer fire domain removal events (service owns that).
+
+### Fixed
+
+- `PersistFlickrData` no-ops unknown namespaces (escape-hatch `call()` no longer fails after a successful Flickr response).
+- Default queued jobs are no longer silently dropped via `ShouldBeUnique`.
+
+### Dependencies
+
+- `jooservices/client` `^2.1` (direct floor; Guzzle resolved via Laravel 13 + client dual-range).
+
 ## [1.0.0] - 2026-07-22
 
 ### Added
@@ -29,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - PHP 8.5+, Laravel illuminate `^13.0`
 - `jooservices/flickr` ^2.0, ecosystem packages, `mongodb/laravel-mongodb`
-- Guzzle 8 via Composer alias (Laravel still declares Guzzle 7)
+- Guzzle 8 via Composer alias (removed in 1.1.0)
 
+[1.1.0]: https://github.com/jooservices/laravel-flickr/releases/tag/v1.1.0
 [1.0.0]: https://github.com/jooservices/laravel-flickr/releases/tag/v1.0.0

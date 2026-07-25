@@ -23,7 +23,10 @@ final class AppRepository extends EloquentRepository
 
     public function exists(string $name): bool
     {
-        return $this->model->newQuery()->where('name', $name)->first() !== null;
+        // Select only _id so encrypted credential columns are not hydrated/decrypted.
+        return $this->model->newQuery()
+            ->where('name', $name)
+            ->first(['_id']) !== null;
     }
 
     public function find(string $name): ?FlickrApp

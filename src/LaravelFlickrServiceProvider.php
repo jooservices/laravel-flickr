@@ -6,13 +6,6 @@ namespace JOOservices\LaravelFlickr;
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
-use JOOservices\LaravelFlickr\Adapters\Contacts;
-use JOOservices\LaravelFlickr\Adapters\Favorites;
-use JOOservices\LaravelFlickr\Adapters\Galleries;
-use JOOservices\LaravelFlickr\Adapters\People;
-use JOOservices\LaravelFlickr\Adapters\Photos;
-use JOOservices\LaravelFlickr\Adapters\Photosets;
-use JOOservices\LaravelFlickr\Adapters\Test;
 use JOOservices\LaravelFlickr\Client\FlickrClientFactory;
 use JOOservices\LaravelFlickr\Console\Commands\FlickrAppAddCommand;
 use JOOservices\LaravelFlickr\Console\Commands\FlickrDoctorCommand;
@@ -20,6 +13,7 @@ use JOOservices\LaravelFlickr\Console\Commands\FlickrInstallIndexesCommand;
 use JOOservices\LaravelFlickr\Console\Commands\FlickrOAuthAuthorizeCommand;
 use JOOservices\LaravelFlickr\Console\Commands\FlickrOAuthCompleteCommand;
 use JOOservices\LaravelFlickr\Console\Commands\FlickrOAuthRevokeCommand;
+use JOOservices\LaravelFlickr\Console\Commands\FlickrRateLimitStatusCommand;
 use JOOservices\LaravelFlickr\Contracts\FlickrClientFactoryInterface;
 use JOOservices\LaravelFlickr\Contracts\RateLimitConfigResolverInterface;
 use JOOservices\LaravelFlickr\Contracts\RuntimeSettingsResolverInterface;
@@ -37,6 +31,7 @@ use JOOservices\LaravelFlickr\Events\FlickrRateLimited;
 use JOOservices\LaravelFlickr\Listeners\LogFlickrActivity;
 use JOOservices\LaravelFlickr\Listeners\PersistFlickrData;
 use JOOservices\LaravelFlickr\Listeners\RecordFlickrEvent;
+use JOOservices\LaravelFlickr\OAuth\OAuthCompletionService;
 use JOOservices\LaravelFlickr\OAuth\OAuthService;
 use JOOservices\LaravelFlickr\OAuth\PendingAuthorizationStore;
 use JOOservices\LaravelFlickr\RateLimit\RedisRequestLimiter;
@@ -50,8 +45,11 @@ use JOOservices\LaravelFlickr\Repositories\PhotoGroupRepository;
 use JOOservices\LaravelFlickr\Repositories\PhotoRepository;
 use JOOservices\LaravelFlickr\Repositories\TokenRepository;
 use JOOservices\LaravelFlickr\Service\ActivityLogService;
+use JOOservices\LaravelFlickr\Service\FlickrCallService;
 use JOOservices\LaravelFlickr\Service\FlickrService;
+use JOOservices\LaravelFlickr\Service\PersistenceReconcileService;
 use JOOservices\LaravelFlickr\Service\StoredEventService;
+use JOOservices\LaravelFlickr\Support\FlickrAdapterRegistry;
 use JOOservices\LaravelFlickr\Support\LaravelConfigRateLimitResolver;
 use JOOservices\LaravelFlickr\Support\LaravelConfigRuntimeSettingsResolver;
 
@@ -84,6 +82,7 @@ final class LaravelFlickrServiceProvider extends ServiceProvider
                 FlickrOAuthRevokeCommand::class,
                 FlickrInstallIndexesCommand::class,
                 FlickrDoctorCommand::class,
+                FlickrRateLimitStatusCommand::class,
             ]);
         }
     }
@@ -106,10 +105,14 @@ final class LaravelFlickrServiceProvider extends ServiceProvider
             ),
         );
         $this->app->singleton(PendingAuthorizationStore::class);
+        $this->app->singleton(OAuthCompletionService::class);
         // Always bind RedisRequestLimiter; enabled() is checked on each acquire/status
         // so laravel-config toggles apply without recycling the worker.
         $this->app->singleton(RequestLimiterInterface::class, RedisRequestLimiter::class);
+        $this->app->singleton(FlickrCallService::class);
         $this->app->singleton(FlickrService::class);
+        $this->app->alias(FlickrService::class, 'flickr');
+        $this->app->singleton(PersistenceReconcileService::class);
     }
 
     private function registerRepositories(): void
@@ -129,7 +132,7 @@ final class LaravelFlickrServiceProvider extends ServiceProvider
 
     private function registerAdapters(): void
     {
-        foreach ([Photos::class, People::class, Contacts::class, Photosets::class, Galleries::class, Favorites::class, Test::class] as $adapter) {
+        foreach (FlickrAdapterRegistry::classes() as $adapter) {
             $this->app->bind($adapter);
         }
     }

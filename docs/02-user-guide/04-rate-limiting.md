@@ -30,6 +30,13 @@ $status = app(FlickrService::class)
 // remaining, limit, windowResetsAt, inCooldown, nextAllowedAt
 ```
 
+CLI (operator visibility; defaults to `flickr.default_connection`):
+
+```bash
+php artisan flickr:rate-limit:status
+php artisan flickr:rate-limit:status backup
+```
+
 ## Events
 
 | Event | When |
@@ -40,3 +47,7 @@ $status = app(FlickrService::class)
 ## Host override
 
 Bind your own `RequestLimiterInterface` (or use `NullRequestLimiter` in special environments). Default binding is `RedisRequestLimiter` so `rate_limit_enabled` can flip without recycling workers.
+
+### Queue uniqueness (not rate limiting)
+
+By default queued Flickr jobs are **not** unique. Identical method/params can run concurrently or retry freely. Pass `unique: true` to `FlickrService::call()` / `FlickrJobDispatcher` to use `UniqueFlickrRequestJob` (`ShouldBeUnique`, 60 seconds).

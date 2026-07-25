@@ -6,8 +6,9 @@ namespace JOOservices\LaravelFlickr\Repositories;
 
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
-use JOOservices\LaravelFlickr\Events\FlickrPhotoUnfavorited;
 use JOOservices\LaravelFlickr\Models\PhotoFavorite;
+use JOOservices\LaravelFlickr\Service\PersistenceReconcileService;
+use JOOservices\LaravelFlickr\Support\MongoBulkUpsert;
 use Jooservices\LaravelRepository\Contracts\RepositoryInterface;
 use Jooservices\LaravelRepository\Repositories\EloquentRepository;
 use Jooservices\LaravelRepository\Traits\HasCrud;
@@ -32,12 +33,24 @@ final class PhotoFavoriteRepository extends EloquentRepository implements Reposi
     /** @param  list<string>  $photoIds */
     public function markMany(string $ownerNsid, array $photoIds): void
     {
+        $rows = [];
         foreach ($photoIds as $photoId) {
-            $this->favorites->newQuery()->updateOrCreate(
-                ['owner_nsid' => $ownerNsid, 'photo_id' => $photoId],
-                ['last_seen_at' => now(), 'removed_at' => null],
-            );
+            if ($photoId === '') {
+                continue;
+            }
+
+            $rows[] = [
+                'filter' => ['owner_nsid' => $ownerNsid, 'photo_id' => $photoId],
+                'set' => [
+                    'owner_nsid' => $ownerNsid,
+                    'photo_id' => $photoId,
+                    'last_seen_at' => now()->toDateTime(),
+                    'removed_at' => null,
+                ],
+            ];
         }
+
+        MongoBulkUpsert::upsert($this->favorites, $rows);
     }
 
     /** @return list<string> */
@@ -53,20 +66,29 @@ final class PhotoFavoriteRepository extends EloquentRepository implements Reposi
         return $ids;
     }
 
-    public function reconcile(string $ownerNsid, CarbonInterface $completedBefore): int
+    /**
+     * Soft-remove stale favorites. Events fired by {@see PersistenceReconcileService}.
+     *
+     * @return list<array{photo_id: string, last_seen_at: CarbonInterface}>
+     */
+    public function markStaleRemoved(string $ownerNsid, CarbonInterface $completedBefore): array
     {
         $stale = $this->activeForOwner($ownerNsid)
             ->where('last_seen_at', '<', $completedBefore)
             ->get();
 
+        $removed = [];
         foreach ($stale as $row) {
             /** @var CarbonInterface $lastSeenAt */
             $lastSeenAt = $row->last_seen_at;
             $row->update(['removed_at' => now()]);
-            event(new FlickrPhotoUnfavorited($ownerNsid, $row->photo_id, $lastSeenAt));
+            $removed[] = [
+                'photo_id' => $row->photo_id,
+                'last_seen_at' => $lastSeenAt,
+            ];
         }
 
-        return $stale->count();
+        return $removed;
     }
 
     /** @return Builder<PhotoFavorite> */

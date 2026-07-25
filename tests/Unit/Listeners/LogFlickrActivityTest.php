@@ -77,8 +77,10 @@ final class LogFlickrActivityTest extends TestCase
     public function it_logs_call_failed_via_system_adapter(): void
     {
         $this->adapter->shouldReceive('action')->once()->with('flickr.photos.getInfo.failed')->andReturnSelf();
+        $this->adapter->shouldReceive('by')->once()->andReturnSelf();
         $this->adapter->shouldReceive('properties')->once()->andReturnSelf();
-        $this->adapter->shouldReceive('save')->once();
+        $this->adapter->shouldReceive('queue')->once()->with('flickr')->andReturnSelf();
+        $this->adapter->shouldReceive('dispatch')->once();
 
         app(LogFlickrActivity::class)->handleCallFailed(new FlickrCallFailed(
             'photos',
@@ -96,7 +98,9 @@ final class LogFlickrActivityTest extends TestCase
     public function it_logs_rate_limit_events(): void
     {
         $this->adapter->shouldReceive('action')->once()->with('flickr.rate_limited')->andReturnSelf();
-        $this->adapter->shouldReceive('save')->once();
+        $this->adapter->shouldReceive('properties')->once()->andReturnSelf();
+        $this->adapter->shouldReceive('queue')->once()->with('flickr')->andReturnSelf();
+        $this->adapter->shouldReceive('dispatch')->once();
         app(LogFlickrActivity::class)->handleRateLimited(new FlickrRateLimited(
             $this->defaultAppName,
             'contacts',
@@ -107,7 +111,9 @@ final class LogFlickrActivityTest extends TestCase
         ));
 
         $this->adapter->shouldReceive('action')->once()->with('flickr.rate_limit.approaching')->andReturnSelf();
-        $this->adapter->shouldReceive('save')->once();
+        $this->adapter->shouldReceive('properties')->once()->andReturnSelf();
+        $this->adapter->shouldReceive('queue')->once()->with('flickr')->andReturnSelf();
+        $this->adapter->shouldReceive('dispatch')->once();
         app(LogFlickrActivity::class)->handleRateLimitApproaching(new FlickrRateLimitApproaching(
             'default',
             100,

@@ -22,9 +22,12 @@ composer ci         # lint:all + coverage
 
 ## Naming
 
-- Entry: `FlickrService`; domain adapters under `Adapters/`
-- Jobs / middleware under `Jobs/`
+- Entry: `FlickrService` (+ `Facades\Flickr`); domain adapters under `Adapters/`
+- Call orchestration: `FlickrCallService` (not in the job body)
+- Adapter map: `Support\FlickrAdapterRegistry`
+- Jobs / middleware under `Jobs/` (`UniqueFlickrRequestJob` is opt-in only)
 - Repositories under `Repositories/`; models under `Models/`
+- Reconcile events: `PersistenceReconcileService` (not repositories)
 - DTOs under `Dto/`
 - Contracts under `Contracts/`
 - Exceptions under `Exceptions/`

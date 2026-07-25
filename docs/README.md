@@ -16,4 +16,6 @@
 | [Config reference](02-user-guide/06-config-reference.md) | Full `flickr.*` key table |
 | [Coding standards](04-development/01-coding-standards.md) | Standards and quality gates |
 | [Testing](04-development/02-testing.md) | Shared Docker images, real Mongo/Redis, coverage |
-| [Quality deep dive](04-development/03-quality-deep-dive.md) | Security, performance, architecture checklist |
+| [Quality deep dive](04-development/03-quality-deep-dive.md) | Security, performance, architecture checklist (1.1.0) |
+
+Also see root [`AGENTS.md`](../AGENTS.md) (agent rules), [`ai/skills/README.md`](../ai/skills/README.md) (short checklist), and [`CHANGELOG.md`](../CHANGELOG.md).

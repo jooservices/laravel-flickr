@@ -21,10 +21,11 @@ final class TokenRepository extends EloquentRepository
 
     public function exists(string $appName, string $nsid): bool
     {
+        // Select only _id so encrypted token columns are not hydrated/decrypted.
         return $this->model->newQuery()
             ->where('app_name', $appName)
             ->where('nsid', $nsid)
-            ->first() !== null;
+            ->first(['_id']) !== null;
     }
 
     public function find(string $appName, string $nsid): ?OAuthToken

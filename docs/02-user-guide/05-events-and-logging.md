@@ -4,9 +4,9 @@
 
 | Event | Purpose |
 |---|---|
-| `FlickrCallStarting` | Job handle entered |
+| `FlickrCallStarting` | `FlickrCallService::execute` entered (optional `correlationId`) |
 | `FlickrCallCompleted` | HTTP (or SDK) call finished; carries `FlickrCallOutcome` |
-| `FlickrCallFailed` | Throwable during call (rethrown after event) |
+| `FlickrCallFailed` | Throwable during call (rethrown after event); richer context + optional correlation id |
 | `FlickrRateLimited` | Local limiter denial |
 | `FlickrRateLimitApproaching` | Quota warning (transition) |
 | `FlickrClientResolved` | Raw SDK client handed out via `getClient()` |

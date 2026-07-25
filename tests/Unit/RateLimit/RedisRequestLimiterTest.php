@@ -182,28 +182,70 @@ final class RedisRequestLimiterTest extends TestCase
         $lastKey = $prefix.':'.$this->connectionKey.':last';
         $cooldownKey = $prefix.':'.$this->connectionKey.':cooldown';
 
-        Redis::shouldReceive('get')
-            ->with($cooldownKey)
-            ->andReturn(null);
-        Redis::shouldReceive('get')
-            ->with($lastKey)
-            ->andReturn(null);
+        $pipe = \Mockery::mock();
+        $pipe->shouldReceive('zcard')->once()->with($windowKey)->andReturnSelf();
+        $pipe->shouldReceive('get')->once()->with($cooldownKey)->andReturnSelf();
+        $pipe->shouldReceive('zrange')->once()->with($windowKey, 0, 0, ['WITHSCORES' => true])->andReturnSelf();
+        $pipe->shouldReceive('get')->once()->with($lastKey)->andReturnSelf();
 
         $connection = \Mockery::mock();
         $connection->shouldReceive('command')
+            ->once()
             ->with('zremrangebyscore', \Mockery::type('array'))
             ->andReturn(0);
-        $connection->shouldReceive('command')
-            ->with('zcard', [$windowKey])
-            ->andReturn(2);
-        $connection->shouldReceive('command')
-            ->with('zrange', [$windowKey, 0, 0, 'WITHSCORES'])
-            ->andReturn(['member-1', '1700000000000']);
+        $connection->shouldReceive('pipeline')
+            ->once()
+            ->andReturnUsing(function (callable $callback) use ($pipe): array {
+                $callback($pipe);
+
+                return [
+                    2,
+                    null,
+                    ['member-1', '1700000000000'],
+                    null,
+                ];
+            });
         Redis::shouldReceive('connection')->andReturn($connection);
 
         $status = $this->limiter()->status($this->connectionKey, fresh: true);
         $this->assertSame(8, $status->remaining);
         $this->assertNotNull($status->windowResetsAt);
+    }
+
+    #[Test]
+    public function status_normalizes_associative_zrange_withscores(): void
+    {
+        $this->seedRateLimitConfig(maxPerHour: 10, minGapMs: 0);
+        $prefix = 'laravel-flickr-test:'.getmypid();
+        $windowKey = $prefix.':'.$this->connectionKey.':window';
+
+        $connection = \Mockery::mock();
+        $connection->shouldReceive('command')
+            ->once()
+            ->with('zremrangebyscore', \Mockery::type('array'))
+            ->andReturn(0);
+        $connection->shouldReceive('pipeline')
+            ->once()
+            ->andReturnUsing(function (callable $callback): array {
+                $pipe = \Mockery::mock();
+                $pipe->shouldReceive('zcard')->andReturnSelf();
+                $pipe->shouldReceive('get')->andReturnSelf();
+                $pipe->shouldReceive('zrange')->andReturnSelf();
+                $callback($pipe);
+
+                return [
+                    1,
+                    null,
+                    ['member-1' => '1700000000000'],
+                    null,
+                ];
+            });
+        Redis::shouldReceive('connection')->andReturn($connection);
+
+        $status = $this->limiter()->status($this->connectionKey, fresh: true);
+        $this->assertSame(9, $status->remaining);
+        $this->assertNotNull($status->windowResetsAt);
+        unset($windowKey, $prefix);
     }
 
     #[Test]

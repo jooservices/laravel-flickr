@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace JOOservices\LaravelFlickr\Tests\Unit\Console;
 
 use JOOservices\LaravelFlickr\Dto\OAuthToken;
-use JOOservices\LaravelFlickr\Exceptions\AppNotFoundException;
 use JOOservices\LaravelFlickr\OAuth\OAuthService;
 use JOOservices\LaravelFlickr\OAuth\PendingAuthorizationStore;
 use JOOservices\LaravelFlickr\Tests\Support\FlickrNsid;
@@ -53,12 +52,12 @@ final class FlickrOAuthCompleteCommandTest extends TestCase
             900,
         );
 
-        $this->expectException(AppNotFoundException::class);
-
         $this->artisan('flickr:oauth:complete', [
             '--oauth-token' => 'request-token',
             '--verifier' => 'verifier',
-        ]);
+        ])
+            ->expectsOutputToContain('No Flickr API app registered as [gone-app]')
+            ->assertFailed();
     }
 
     #[Test]

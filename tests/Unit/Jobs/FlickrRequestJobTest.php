@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelFlickr\Tests\Unit\Jobs;
 
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Support\Facades\Event;
 use JOOservices\Flickr\DTO\Common\ApiResponseData;
-use JOOservices\LaravelConfig\Facades\Config;
 use JOOservices\LaravelFlickr\Events\FlickrCallCompleted;
 use JOOservices\LaravelFlickr\Events\FlickrCallFailed;
 use JOOservices\LaravelFlickr\Events\FlickrCallStarting;
 use JOOservices\LaravelFlickr\Exceptions\AppNotFoundException;
 use JOOservices\LaravelFlickr\Exceptions\TokenNotFoundException;
 use JOOservices\LaravelFlickr\Jobs\FlickrRequestJob;
+use JOOservices\LaravelFlickr\Jobs\UniqueFlickrRequestJob;
 use JOOservices\LaravelFlickr\Tests\Support\FlickrNsid;
 use JOOservices\LaravelFlickr\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -121,6 +122,21 @@ final class FlickrRequestJobTest extends TestCase
         $this->assertNotSame($jobA->uniqueId(), $jobB->uniqueId());
         $this->assertNotSame($jobA->uniqueId(), $jobC->uniqueId());
         $this->assertStringContainsString('flickr.contacts.getList:default:1@N01:', $jobA->uniqueId());
+        $this->assertNotInstanceOf(ShouldBeUnique::class, $jobA);
+    }
+
+    #[Test]
+    public function unique_job_subclass_is_should_be_unique(): void
+    {
+        $job = new UniqueFlickrRequestJob(
+            'contacts',
+            'getList',
+            'default',
+            '1@N01',
+            ['page' => 1],
+        );
+        $this->assertInstanceOf(ShouldBeUnique::class, $job);
+        $this->assertSame(60, $job->uniqueFor);
     }
 
     #[Test]
@@ -155,25 +171,11 @@ final class FlickrRequestJobTest extends TestCase
     }
 
     #[Test]
-    public function constructor_applies_queue_connection_and_middleware(): void
+    public function constructor_is_pure_data_bag_and_exposes_middleware(): void
     {
-        Config::fake([
-            'flickr' => [
-                'default_connection' => 'default',
-                'queue_connection' => 'sync',
-                'queue_name' => 'flickr-edge',
-                'rate_limit_enabled' => false,
-                'logging_enabled' => false,
-                'events_enabled' => false,
-                'default_per_page' => 50,
-                'oauth_pending_key_prefix' => 'edge-oauth',
-                'rate_limit_key_prefix' => 'edge-rl',
-            ],
-        ]);
-
         $job = new FlickrRequestJob('test', 'echo', 'default', null, []);
-        $this->assertSame('sync', $job->connection);
-        $this->assertSame('flickr-edge', $job->queue);
+        $this->assertNull($job->connection);
+        $this->assertNull($job->queue);
         $this->assertNotEmpty($job->middleware());
     }
 }

@@ -5,20 +5,16 @@ declare(strict_types=1);
 namespace JOOservices\LaravelFlickr\Listeners;
 
 use Illuminate\Contracts\Container\Container;
-use InvalidArgumentException;
 use JOOservices\LaravelFlickr\Adapters\AbstractFlickrAdapter;
-use JOOservices\LaravelFlickr\Adapters\Contacts;
-use JOOservices\LaravelFlickr\Adapters\Favorites;
-use JOOservices\LaravelFlickr\Adapters\Galleries;
-use JOOservices\LaravelFlickr\Adapters\People;
-use JOOservices\LaravelFlickr\Adapters\Photos;
-use JOOservices\LaravelFlickr\Adapters\Photosets;
-use JOOservices\LaravelFlickr\Adapters\Test;
 use JOOservices\LaravelFlickr\Contracts\PersistsResults;
 use JOOservices\LaravelFlickr\Events\FlickrCallCompleted;
+use JOOservices\LaravelFlickr\Service\FlickrService;
+use JOOservices\LaravelFlickr\Support\FlickrAdapterRegistry;
 
 /**
  * Resolves adapters by namespace without re-validating tokens (call already completed).
+ * Unknown namespaces no-op so {@see FlickrService::call()}
+ * escape-hatch methods never fail after a successful Flickr HTTP response.
  */
 final class PersistFlickrData
 {
@@ -32,28 +28,18 @@ final class PersistFlickrData
         }
     }
 
-    private function resolveAdapter(string $namespace, string $appName, ?string $nsid): AbstractFlickrAdapter
+    private function resolveAdapter(string $namespace, string $appName, ?string $nsid): ?AbstractFlickrAdapter
     {
-        $class = match ($namespace) {
-            'photos' => Photos::class,
-            'people' => People::class,
-            'contacts' => Contacts::class,
-            'photosets' => Photosets::class,
-            'galleries' => Galleries::class,
-            'favorites' => Favorites::class,
-            'test' => Test::class,
-            default => throw new InvalidArgumentException("Unknown Flickr adapter namespace [{$namespace}]."),
-        };
+        $class = FlickrAdapterRegistry::classFor($namespace);
+        if ($class === null) {
+            return null;
+        }
 
         $adapter = $this->container->make($class, [
             'appName' => $appName,
             'nsid' => $nsid,
         ]);
 
-        if (! $adapter instanceof AbstractFlickrAdapter) {
-            throw new InvalidArgumentException("Unknown Flickr adapter namespace [{$namespace}].");
-        }
-
-        return $adapter;
+        return $adapter instanceof AbstractFlickrAdapter ? $adapter : null;
     }
 }

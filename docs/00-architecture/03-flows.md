@@ -9,6 +9,7 @@ sequenceDiagram
   participant Ad as Adapter
   participant JD as FlickrJobDispatcher
   participant Job as FlickrRequestJob
+  participant Call as FlickrCallService
   participant Fac as FlickrClientFactory
   participant LT as LimitingFlickrTransport
   participant API as Flickr API
@@ -19,21 +20,25 @@ sequenceDiagram
   FS->>FS: TokenRepository.exists(app, nsid)
   Host->>Ad: method(params)
   Ad->>JD: dispatch(..., applyDefaultPerPage?)
+  JD->>Job: onQueue / onConnection
   JD->>Job: middleware + handle (sync)
-  Job->>Job: event CallStarting
-  Job->>Fac: authenticated(credentials, token)
+  Job->>Call: execute(...)
+  Call->>Call: event CallStarting
+  Call->>Fac: authenticated(credentials, token)
   Fac->>LT: wrap transport
-  LT->>LT: limiter.acquire(apiKey)
+  LT->>LT: limiter.acquire(SHA-256(apiKey))
   LT->>API: HTTP
   API-->>LT: response
-  Job->>Job: event CallCompleted
-  Job-->>Host: ApiResponseData
-  Job->>Ev: Log / Record / Persist
+  Call->>Call: event CallCompleted
+  Call-->>Host: ApiResponseData
+  Call->>Ev: Log / Record / Persist
 ```
 
 ## 2. Queued call
 
-Same as above until `FlickrJobDispatcher`: when `$queued = true`, the job is `dispatch()`ed to the queue named by `flickr.queue_name`. Workers run `handle()` with the same middleware and events. Callers observe outcomes via events, not return values.
+Same as above until `FlickrJobDispatcher`: when `$queued = true`, the job is `dispatch()`ed to the queue named by `flickr.queue_name`. Workers run `handle()` → `FlickrCallService` with the same middleware and events. Callers observe outcomes via events, not return values.
+
+**Uniqueness:** default `FlickrRequestJob` is **not** unique (retries and identical pages are not silently dropped). Opt in with `$unique = true` on `FlickrService::call()` / dispatcher, which uses `UniqueFlickrRequestJob` (`ShouldBeUnique`, 60s).
 
 ## 3. Multi-app resolution
 
@@ -67,13 +72,12 @@ sequenceDiagram
   Dev->>Flickr: authorize in browser
   alt Web callback
     Flickr->>CB: GET oauth_token + oauth_verifier
-    CB->>Pending: consume
-    CB->>OAuth: complete
+    CB->>CB: OAuthCompletionService.completePending
   else OOB
     Dev->>CLI: flickr:oauth:complete verifier
-    CLI->>Pending: consume
-    CLI->>OAuth: complete
+    CLI->>CLI: OAuthCompletionService.completePending
   end
+  Note over CB,CLI: consume pending → OAuthService.complete → TokenRepository
   OAuth->>Tokens: store(app, token)
   OAuth->>OAuth: event FlickrOAuthCompleted
 ```
@@ -87,8 +91,10 @@ Two layers, always active when the client is built by this package:
 
 Limiter: Redis Lua for atomic min-gap + hourly window. Disabled path (`flickr.rate_limit_enabled=false`) grants unlimited permits without recycling workers.
 
-`FlickrRateLimitApproaching` fires **once** when usage crosses `warning_threshold_percent` for a connection key (transition), not on every later request.
+`FlickrRateLimitApproaching` fires **once** when usage crosses `warning_threshold_percent` for a connection key (transition), not on every later request. Transition state is cache-backed so multi-worker hosts share the same transition.
 
 ## 6. Persistence
 
-On `FlickrCallCompleted`, `PersistFlickrData` builds the matching adapter from the container with `(appName, nsid)` and calls `persist()` when the adapter implements `PersistsResults`. Failed or non-matching methods no-op.
+On `FlickrCallCompleted`, `PersistFlickrData` resolves the adapter via `FlickrAdapterRegistry`. If the namespace is unknown or the adapter does not implement `PersistsResults`, the listener **no-ops** (never throws). This keeps the `FlickrService::call()` escape hatch safe after a successful Flickr HTTP response.
+
+Soft-remove reconciliation is owned by `PersistenceReconcileService` (repositories only mark rows; the service emits domain events).

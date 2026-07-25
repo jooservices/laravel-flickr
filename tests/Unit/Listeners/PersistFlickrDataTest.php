@@ -77,20 +77,21 @@ final class PersistFlickrDataTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_unknown_namespaces(): void
+    public function it_no_ops_unknown_namespaces_so_escape_hatch_calls_cannot_fail_after_success(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-        app(PersistFlickrData::class)->handle($this->flickrCallCompleted('not-a-namespace', 'x', FlickrNsid::fake()));
+        $before = Contact::query()->count();
+        app(PersistFlickrData::class)->handle($this->flickrCallCompleted('groups', 'getInfo', FlickrNsid::fake()));
+        $this->assertSame($before, Contact::query()->count());
     }
 
     #[Test]
-    public function it_rejects_container_misbinds_that_are_not_adapters(): void
+    public function it_no_ops_when_container_misbinds_are_not_adapters(): void
     {
         $this->storeApp();
         $this->app->bind(\JOOservices\LaravelFlickr\Adapters\Test::class, static fn (): object => new \stdClass());
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Unknown Flickr adapter');
+        $before = Contact::query()->count();
         app(PersistFlickrData::class)->handle($this->flickrCallCompleted('test', 'login', null));
+        $this->assertSame($before, Contact::query()->count());
     }
 }

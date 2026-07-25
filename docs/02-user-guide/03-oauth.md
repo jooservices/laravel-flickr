@@ -6,8 +6,9 @@
 |---|---|
 | `OAuthService` | Request token + access token exchange via SDK |
 | `PendingAuthorizationStore` | Encrypted Redis payload: request secret, app name, correlation id |
+| `OAuthCompletionService` | Shared complete path (consume pending → store token) for CLI + HTTP |
 | CLI | OOB and web-start flows |
-| HTTP callback | Completes web redirect flow (GET) |
+| HTTP callback | Completes web redirect flow (GET); thin controller → completion service |
 
 ## CLI — out-of-band
 
@@ -25,7 +26,7 @@ php artisan flickr:oauth:authorize default \
   --correlation-id=host-run-123
 ```
 
-Flickr redirects to the package callback path (`FLICKR_OAUTH_CALLBACK_PATH`). The controller validates `oauth_token` + `oauth_verifier` via `OAuthCallbackRequest`, consumes pending state, stores the token, and returns a JSON envelope (nsid, username, correlation_id).
+Flickr redirects to the package callback path (`FLICKR_OAUTH_CALLBACK_PATH`). The controller validates `oauth_token` + `oauth_verifier` via `OAuthCallbackRequest`, then `OAuthCompletionService::completePending` consumes pending state and stores the token. Response is a JSON envelope (nsid, username, correlation_id). Missing pending app yields a structured 404 (not an uncaught 500).
 
 ## Revoke
 
