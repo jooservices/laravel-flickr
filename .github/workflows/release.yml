@@ -87,7 +87,7 @@ jobs:
             MongoDB tokens, OAuth, rate limits, and ecosystem logging/events.
 
             ```bash
-            composer require jooservices/laravel-flickr:^1.0
+            composer require jooservices/laravel-flickr:^1.1
             ```
 
             See [CHANGELOG.md](https://github.com/jooservices/laravel-flickr/blob/main/CHANGELOG.md)

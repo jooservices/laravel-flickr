@@ -7,8 +7,9 @@ namespace JOOservices\LaravelFlickr\Repositories;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use JOOservices\LaravelFlickr\Events\FlickrPhotoRemoved;
 use JOOservices\LaravelFlickr\Models\Photo;
+use JOOservices\LaravelFlickr\Service\PersistenceReconcileService;
+use JOOservices\LaravelFlickr\Support\MongoBulkUpsert;
 use Jooservices\LaravelRepository\Contracts\RepositoryInterface;
 use Jooservices\LaravelRepository\Repositories\EloquentRepository;
 use Jooservices\LaravelRepository\Traits\HasCrud;
@@ -36,16 +37,25 @@ final class PhotoRepository extends EloquentRepository implements RepositoryInte
     /** @param  list<array<string, mixed>>  $items */
     public function upsertMany(string $ownerNsid, array $items): void
     {
+        $rows = [];
         foreach ($items as $item) {
             if (! isset($item['id']) || ! is_scalar($item['id'])) {
                 continue;
             }
 
-            $this->photos->newQuery()->updateOrCreate(
-                ['owner_nsid' => $ownerNsid, 'photo_id' => (string) $item['id']],
-                ['last_seen_at' => now(), 'removed_at' => null, 'raw' => $item],
-            );
+            $rows[] = [
+                'filter' => ['owner_nsid' => $ownerNsid, 'photo_id' => (string) $item['id']],
+                'set' => [
+                    'owner_nsid' => $ownerNsid,
+                    'photo_id' => (string) $item['id'],
+                    'last_seen_at' => now()->toDateTime(),
+                    'removed_at' => null,
+                    'raw' => $item,
+                ],
+            ];
         }
+
+        MongoBulkUpsert::upsert($this->photos, $rows);
     }
 
     /** @return Collection<int, Photo> */
@@ -66,20 +76,29 @@ final class PhotoRepository extends EloquentRepository implements RepositoryInte
         return $this->photosForIds($ownerNsid, $this->photoFavorites->photoIdsForOwner($ownerNsid));
     }
 
-    public function reconcile(string $ownerNsid, CarbonInterface $completedBefore): int
+    /**
+     * Soft-remove stale photos. Domain events are fired by {@see PersistenceReconcileService}.
+     *
+     * @return list<array{photo_id: string, last_seen_at: CarbonInterface}>
+     */
+    public function markStaleRemoved(string $ownerNsid, CarbonInterface $completedBefore): array
     {
         $stale = $this->activeForOwner($ownerNsid)
             ->where('last_seen_at', '<', $completedBefore)
             ->get();
 
+        $removed = [];
         foreach ($stale as $photo) {
             /** @var CarbonInterface $lastSeenAt */
             $lastSeenAt = $photo->last_seen_at;
             $photo->update(['removed_at' => now()]);
-            event(new FlickrPhotoRemoved($ownerNsid, $photo->photo_id, $lastSeenAt));
+            $removed[] = [
+                'photo_id' => $photo->photo_id,
+                'last_seen_at' => $lastSeenAt,
+            ];
         }
 
-        return $stale->count();
+        return $removed;
     }
 
     /**

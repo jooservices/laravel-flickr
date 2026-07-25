@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelFlickr\Client;
 
+use Illuminate\Support\Facades\Cache;
 use JOOservices\Flickr\Contracts\Client\FlickrTransportContract;
 use JOOservices\Flickr\DTO\Common\RawResponseData;
 use JOOservices\LaravelFlickr\Contracts\RateLimitConfigResolverInterface;
@@ -15,9 +16,6 @@ use JOOservices\LaravelFlickr\RateLimit\RequestLimiterInterface;
 
 final class LimitingFlickrTransport implements FlickrTransportContract
 {
-    /** @var array<string, float> last percent-used seen per connection key (for transition detection) */
-    private array $lastPercentUsed = [];
-
     public function __construct(
         private readonly FlickrTransportContract $inner,
         private readonly RequestLimiterInterface $limiter,
@@ -58,10 +56,13 @@ final class LimitingFlickrTransport implements FlickrTransportContract
 
         $percentUsed = (($limit - $remaining) / $limit) * 100;
         $threshold = $this->rateLimitConfig->warningThresholdPercent();
-        $previous = $this->lastPercentUsed[$this->connectionKey] ?? 0.0;
-        $this->lastPercentUsed[$this->connectionKey] = $percentUsed;
+        $cacheKey = 'laravel-flickr:rl:warn:'.$this->connectionKey;
+        $cached = Cache::get($cacheKey, 0.0);
+        $previous = is_numeric($cached) ? (float) $cached : 0.0;
+        Cache::put($cacheKey, $percentUsed, 3600);
 
         // Fire once on the transition across the threshold, not on every later request.
+        // Cache-backed so multi-worker hosts share the transition state.
         if ($previous >= $threshold || $percentUsed < $threshold) {
             return;
         }

@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace JOOservices\LaravelFlickr\Console\Commands;
 
 use Illuminate\Console\Command;
-use JOOservices\LaravelFlickr\Exceptions\AppNotFoundException;
-use JOOservices\LaravelFlickr\OAuth\OAuthService;
-use JOOservices\LaravelFlickr\OAuth\PendingAuthorizationStore;
-use JOOservices\LaravelFlickr\Repositories\AppRepository;
+use JOOservices\LaravelFlickr\OAuth\OAuthCompletionService;
 
 final class FlickrOAuthCompleteCommand extends Command
 {
@@ -18,11 +15,8 @@ final class FlickrOAuthCompleteCommand extends Command
 
     protected $description = 'Complete Flickr OAuth after authorization';
 
-    public function handle(
-        OAuthService $oauth,
-        AppRepository $apps,
-        PendingAuthorizationStore $pending,
-    ): int {
+    public function handle(OAuthCompletionService $completion): int
+    {
         $oauthToken = $this->option('oauth-token');
         $verifier = $this->option('verifier');
 
@@ -32,30 +26,17 @@ final class FlickrOAuthCompleteCommand extends Command
             return self::FAILURE;
         }
 
-        $pendingAuth = $pending->consume($oauthToken);
-        if ($pendingAuth === null) {
-            $this->error('Authorization request not found or expired.');
+        $result = $completion->completePending($oauthToken, $verifier);
+        if (! $result->ok || $result->token === null || $result->appName === null) {
+            $this->error($result->error ?? 'Authorization failed.');
 
             return self::FAILURE;
         }
 
-        $app = $apps->find($pendingAuth->appName);
-        if ($app === null) {
-            throw new AppNotFoundException($pendingAuth->appName);
-        }
-
-        $token = $oauth->complete(
-            $app->credentials(),
-            $pendingAuth->appName,
-            $oauthToken,
-            $verifier,
-            $pendingAuth->oauthTokenSecret,
-            $pendingAuth->correlationId,
-        );
-
-        $this->info("Connected Flickr account: {$token->username} ({$token->userNsid}) on [{$pendingAuth->appName}]");
+        $token = $result->token;
+        $this->info("Connected Flickr account: {$token->username} ({$token->userNsid}) on [{$result->appName}]");
         $this->comment(
-            "Use FlickrService::connection('{$pendingAuth->appName}')->as('{$token->userNsid}') for future calls.",
+            "Use FlickrService::connection('{$result->appName}')->as('{$token->userNsid}') for future calls.",
         );
 
         return self::SUCCESS;

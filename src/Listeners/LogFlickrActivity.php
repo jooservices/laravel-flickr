@@ -36,6 +36,7 @@ final class LogFlickrActivity
                 'items' => $event->outcome->itemCount,
                 'duration_ms' => $event->outcome->durationMs,
                 'quota_remaining' => $event->outcome->quotaRemaining,
+                'correlation_id' => $event->correlationId,
             ])
             ->queue($this->runtimeSettings->queueName())
             ->dispatch();
@@ -49,8 +50,17 @@ final class LogFlickrActivity
 
         ActivityLog::system()
             ->action("flickr.{$event->namespace}.{$event->method}.failed")
-            ->properties(['exception' => $event->exceptionClass, 'message' => $event->exceptionMessage])
-            ->save();
+            ->by($event->nsid ?? 'anonymous')
+            ->properties([
+                'app_name' => $event->appName,
+                'nsid' => $event->nsid,
+                'queued' => $event->queued,
+                'exception' => $event->exceptionClass,
+                'message' => $event->exceptionMessage,
+                'correlation_id' => $event->correlationId,
+            ])
+            ->queue($this->runtimeSettings->queueName())
+            ->dispatch();
     }
 
     public function handleRateLimited(FlickrRateLimited $event): void
@@ -63,10 +73,14 @@ final class LogFlickrActivity
             ->action('flickr.rate_limited')
             ->properties([
                 'app_name' => $event->appName,
+                'namespace' => $event->namespace,
+                'method' => $event->method,
+                'nsid' => $event->nsid,
                 'reason' => $event->reason->value,
                 'retry_after_seconds' => $event->retryAfterSeconds,
             ])
-            ->save();
+            ->queue($this->runtimeSettings->queueName())
+            ->dispatch();
     }
 
     public function handleRateLimitApproaching(FlickrRateLimitApproaching $event): void
@@ -78,7 +92,8 @@ final class LogFlickrActivity
         ActivityLog::system()
             ->action('flickr.rate_limit.approaching')
             ->properties(['remaining' => $event->remaining, 'limit' => $event->limit, 'percent_used' => $event->percentUsed])
-            ->save();
+            ->queue($this->runtimeSettings->queueName())
+            ->dispatch();
     }
 
     public function handleOAuthCompleted(FlickrOAuthCompleted $event): void

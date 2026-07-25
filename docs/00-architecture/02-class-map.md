@@ -12,6 +12,8 @@ classDiagram
     +getClient() Flickr
     +rateLimitStatus() RateLimitStatus
   }
+  class Tags
+  class FlickrFacade
   class AbstractFlickrAdapter {
     +appName() string
     +nsid() ?string
@@ -21,8 +23,11 @@ classDiagram
     +dispatch(...) ?ApiResponseData
   }
   class FlickrRequestJob {
-    +handle(...) ApiResponseData
+    +handle(FlickrCallService) ApiResponseData
     +uniqueId() string
+  }
+  class FlickrCallService {
+    +execute(...) ApiResponseData
   }
   class FlickrClientFactory {
     +authenticated(...) Flickr
@@ -44,18 +49,21 @@ classDiagram
   FlickrService --> FlickrClientFactory : getClient
   AbstractFlickrAdapter --> FlickrJobDispatcher
   FlickrJobDispatcher --> FlickrRequestJob
-  FlickrRequestJob --> FlickrClientFactory
-  FlickrRequestJob --> AppRepository
-  FlickrRequestJob --> TokenRepository
+  FlickrRequestJob --> FlickrCallService
+  FlickrCallService --> FlickrClientFactory
+  FlickrCallService --> AppRepository
+  FlickrCallService --> TokenRepository
   FlickrClientFactory --> LimitingFlickrTransport
   LimitingFlickrTransport --> RequestLimiterInterface
   PersistFlickrData --> AbstractFlickrAdapter
-  FlickrRequestJob ..> LogFlickrActivity : events
-  FlickrRequestJob ..> RecordFlickrEvent : events
-  FlickrRequestJob ..> PersistFlickrData : events
+  FlickrCallService ..> LogFlickrActivity : events
+  FlickrCallService ..> RecordFlickrEvent : events
+  FlickrCallService ..> PersistFlickrData : events
 ```
 
 ## Adapter set
+
+Registered in `FlickrAdapterRegistry::MAP`.
 
 | Class | Namespace const | Persists? |
 |---|---|---|
@@ -66,8 +74,9 @@ classDiagram
 | `Galleries` | `galleries` | Yes (`getPhotos`) |
 | `Favorites` | `favorites` | Yes (`getList`) |
 | `Test` | `test` | No |
+| `Tags` | `tags` | No |
 
-Adapters that persist implement `PersistsResults` and are invoked by `PersistFlickrData` after `FlickrCallCompleted` — without re-validating tokens.
+Adapters that persist implement `PersistsResults` and are invoked by `PersistFlickrData` after `FlickrCallCompleted` — without re-validating tokens. Unknown namespaces no-op (never throw).
 
 ## OAuth
 
@@ -77,6 +86,7 @@ FlickrOAuthAuthorizeCommand / host
         → PendingAuthorizationStore (encrypted Redis)
         → user authorizes on Flickr
         → OAuthCallbackController | FlickrOAuthCompleteCommand
+        → OAuthCompletionService::completePending
         → OAuthService::complete
         → TokenRepository::store
         → FlickrOAuthCompleted

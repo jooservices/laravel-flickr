@@ -18,6 +18,7 @@ use JOOservices\LaravelFlickr\Repositories\ContactRepository;
 use JOOservices\LaravelFlickr\Repositories\PhotoFavoriteRepository;
 use JOOservices\LaravelFlickr\Repositories\PhotoGroupRepository;
 use JOOservices\LaravelFlickr\Repositories\PhotoRepository;
+use JOOservices\LaravelFlickr\Service\PersistenceReconcileService;
 use JOOservices\LaravelFlickr\Tests\Support\FlickrNsid;
 use JOOservices\LaravelFlickr\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -55,7 +56,7 @@ final class RepositoryReconcileTest extends TestCase
             'raw' => ['nsid' => $fresh],
         ]);
 
-        $removed = app(ContactRepository::class)->reconcile($owner, $cutoff);
+        $removed = app(PersistenceReconcileService::class)->reconcileContacts($owner, $cutoff);
 
         $this->assertSame(1, $removed);
         $this->assertNotNull(Contact::query()->where('contact_nsid', $stale)->first()?->removed_at);
@@ -79,7 +80,7 @@ final class RepositoryReconcileTest extends TestCase
             'raw' => ['id' => $staleId],
         ]);
 
-        $removed = app(PhotoRepository::class)->reconcile($owner, $cutoff);
+        $removed = app(PersistenceReconcileService::class)->reconcilePhotos($owner, $cutoff);
 
         $this->assertSame(1, $removed);
         Event::assertDispatched(FlickrPhotoRemoved::class);
@@ -103,7 +104,7 @@ final class RepositoryReconcileTest extends TestCase
             'removed_at' => null,
         ]);
 
-        $removed = app(PhotoGroupRepository::class)->reconcile($owner, 'photoset', $groupId, $cutoff);
+        $removed = app(PersistenceReconcileService::class)->reconcilePhotoGroup($owner, 'photoset', $groupId, $cutoff);
 
         $this->assertSame(1, $removed);
         Event::assertDispatched(FlickrPhotoGroupRemoved::class);
@@ -124,7 +125,7 @@ final class RepositoryReconcileTest extends TestCase
             'removed_at' => null,
         ]);
 
-        $removed = app(PhotoFavoriteRepository::class)->reconcile($owner, $cutoff);
+        $removed = app(PersistenceReconcileService::class)->reconcileFavorites($owner, $cutoff);
 
         $this->assertSame(1, $removed);
         Event::assertDispatched(FlickrPhotoUnfavorited::class);
@@ -141,5 +142,16 @@ final class RepositoryReconcileTest extends TestCase
         $this->assertTrue(Contact::query()->where('owner_nsid', $owner)->where('contact_nsid', '1@N01')->exists());
         $this->assertSame(1, Photo::query()->where('owner_nsid', $owner)->count());
         $this->assertTrue(Photo::query()->where('owner_nsid', $owner)->where('photo_id', '99')->exists());
+    }
+
+    #[Test]
+    public function attach_and_mark_many_skip_empty_photo_ids(): void
+    {
+        $owner = FlickrNsid::fake();
+        app(PhotoGroupRepository::class)->attachMany($owner, 'photoset', 'set-1', ['', '11']);
+        app(PhotoFavoriteRepository::class)->markMany($owner, ['', '22']);
+
+        $this->assertSame(['11'], app(PhotoGroupRepository::class)->photoIdsIn($owner, 'photoset', 'set-1'));
+        $this->assertSame(['22'], app(PhotoFavoriteRepository::class)->photoIdsForOwner($owner));
     }
 }

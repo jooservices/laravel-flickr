@@ -1,7 +1,7 @@
 # Installation
 
 ```bash
-composer require jooservices/laravel-flickr:^1.0
+composer require jooservices/laravel-flickr:^1.1
 ```
 
 Requires:
@@ -11,6 +11,7 @@ Requires:
 - MongoDB (apps, tokens, optional persistence)
 - Redis (rate limiting and OAuth pending state)
 - `jooservices/laravel-config` (runtime `flickr.*` settings)
+- `jooservices/client` `^2.1` (transitive HTTP; Guzzle 7.10+ or 8)
 
 ## Publish package config
 
@@ -32,6 +33,7 @@ php artisan flickr:app:add default --api-key=your_key --api-secret=your_secret
 php artisan flickr:install-indexes
 php artisan flickr:oauth:authorize default
 php artisan flickr:doctor
+php artisan flickr:rate-limit:status
 ```
 
 ## Artisan commands
@@ -44,5 +46,6 @@ php artisan flickr:doctor
 | `flickr:oauth:revoke` | Delete stored token |
 | `flickr:install-indexes` | Create unique Mongo indexes |
 | `flickr:doctor` | Read-only dependency check |
+| `flickr:rate-limit:status {connection?}` | Show rate-limit bucket for a connection |
 
-The service provider auto-registers via Composer `extra.laravel.providers`.
+The service provider auto-registers via Composer `extra.laravel.providers`. The facade short name `Flickr` is registered via `extra.laravel.aliases`.

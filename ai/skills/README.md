@@ -1,14 +1,27 @@
 # AI skills (package)
 
-Canonical agent rules live in [`AGENTS.md`](../../AGENTS.md). Full human docs live in [`docs/`](../../docs/).
+Canonical agent rules: [`AGENTS.md`](../../AGENTS.md).  
+Human docs: [`docs/`](../../docs/).  
+Release notes: [`CHANGELOG.md`](../../CHANGELOG.md).
 
-When changing this package:
+## When changing this package
 
-1. Entry point is `FlickrService` + namespace adapters (page-level calls only — never multi-page loops)
-2. Multi-app: always respect `connection($name)` / `flickr.default_connection`; tokens are keyed by `(app_name, nsid)`
-3. Sync by default; queue only via explicit `$queued = true` on adapter/`call` paths (`FlickrRequestJob`)
-4. Rate limiting must stay wired through `LimitingFlickrTransport` in `FlickrClientFactory` — never sleep for limits
-5. Runtime settings come from laravel-config `flickr.*` (not env), except `oauth.callback_path`
-6. Do not expose `activities` / `logs` / `events` on `FlickrService`
-7. Default `per_page` only on list-style methods; approaching events are transition-once
-8. Run `composer check` (with Mongo + Redis) before claiming done
+1. **Entry:** `FlickrService` or facade `Facades\Flickr` + namespace adapters (page-level only — never multi-page loops).
+2. **Multi-app:** respect `connection($name)` / `flickr.default_connection`; tokens are `(app_name, nsid)`.
+3. **Sync default;** queue only via explicit `$queued = true`. Default job is **not** unique; opt in with `unique: true` → `UniqueFlickrRequestJob`.
+4. **Call path:** adapters / `call()` → `FlickrJobDispatcher` → `FlickrRequestJob` → **`FlickrCallService`** (business logic not in the job).
+5. **Adapters:** register in `FlickrAdapterRegistry` only; `PersistFlickrData` no-ops unknown namespaces.
+6. **Rate limits:** always via `LimitingFlickrTransport` in `FlickrClientFactory` — never sleep for limits. Status CLI: `flickr:rate-limit:status`.
+7. **OAuth complete:** use `OAuthCompletionService` (not duplicated controller/CLI orchestration).
+8. **Runtime settings:** `laravel-config` `flickr.*` (not env), except `oauth.callback_path`.
+9. **Do not** expose `activities` / `logs` / `events` on `FlickrService`.
+10. **Default `per_page`** only on list-style methods; approaching events are transition-once (cache-backed).
+11. **Docs:** update `docs/`, `AGENTS.md`, `README.md`, and `CHANGELOG.md` when public surface changes.
+12. **Quality gate:** `composer check` (Mongo + Redis; shared tags `mongo:8.3.4` + `redis:8.8.0-alpine`).
+
+## Release (this repo)
+
+- Default branch: `main`
+- Feature work: branch from `main`, PR back to `main`
+- Release prep: `release/X.Y.Z` from latest `main` → PR into `main`
+- After merge: tag `vX.Y.Z` on `main` and push tags (`.github/workflows/release.yml` validates + creates GitHub Release)

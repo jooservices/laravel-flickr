@@ -23,13 +23,12 @@
     },
     "require": {
         "php": "^8.5",
-        "guzzlehttp/guzzle": "8.0.0 as 7.9.3",
-        "guzzlehttp/promises": "3.0.0 as 2.5.1",
         "illuminate/bus": "^13.0",
         "illuminate/contracts": "^13.0",
         "illuminate/queue": "^13.0",
         "illuminate/redis": "^13.0",
         "illuminate/support": "^13.0",
+        "jooservices/client": "^2.1",
         "jooservices/exceptions": "^0.5",
         "jooservices/flickr": "^2.0",
         "jooservices/laravel-config": "^1.4",
@@ -90,16 +89,16 @@
         ]
     },
     "config": {
-        "sort-packages": true,
-        "allow-plugins": {
-            "php-http/discovery": true
-        }
+        "sort-packages": true
     },
     "extra": {
         "laravel": {
             "providers": [
                 "JOOservices\\LaravelFlickr\\LaravelFlickrServiceProvider"
-            ]
+            ],
+            "aliases": {
+                "Flickr": "JOOservices\\LaravelFlickr\\Facades\\Flickr"
+            }
         }
     },
     "minimum-stability": "stable",

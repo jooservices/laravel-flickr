@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelFlickr\Tests\Unit\Client;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use JOOservices\Flickr\Contracts\Client\FlickrTransportContract;
 use JOOservices\Flickr\DTO\Common\RawResponseData;
@@ -26,6 +27,7 @@ final class LimitingFlickrTransportTest extends TestCase
     {
         parent::setUp();
         Event::fake();
+        Cache::flush();
     }
 
     #[Test]

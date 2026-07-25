@@ -1,6 +1,7 @@
 # Quick start
 
 ```php
+use JOOservices\LaravelFlickr\Facades\Flickr;
 use JOOservices\LaravelFlickr\Service\FlickrService;
 
 // Register a Flickr API app first: php artisan flickr:app:add default --api-key=… --api-secret=…
@@ -10,6 +11,9 @@ $response = app(FlickrService::class)
     ->as($nsid)
     ->contacts
     ->getList(['per_page' => 100]);
+
+// Or facade:
+// Flickr::as($nsid)->contacts->getList(['per_page' => 100]);
 
 if (! $response?->ok) {
     // handle Flickr error payload
@@ -40,6 +44,15 @@ app(FlickrService::class)
     ->getPublicPhotos($ownerNsid, ['per_page' => 5]);
 ```
 
+Tags (no Mongo persistence):
+
+```php
+app(FlickrService::class)
+    ->as($nsid)
+    ->tags
+    ->getHotList(['period' => 'week', 'count' => 20]);
+```
+
 Queue a call (observe completion via events):
 
 ```php
@@ -47,6 +60,16 @@ app(FlickrService::class)
     ->as($nsid)
     ->contacts
     ->getList(['page' => 1], queued: true);
+
+// Escape hatch with optional uniqueness + correlation id
+app(FlickrService::class)->as($nsid)->call(
+    'contacts',
+    'getList',
+    ['page' => 1],
+    queued: true,
+    unique: true,
+    correlationId: $runId,
+);
 ```
 
 Do **not** use `FlickrService` for activity logs or stored events — resolve:

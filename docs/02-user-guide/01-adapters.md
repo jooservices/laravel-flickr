@@ -25,6 +25,7 @@ app(FlickrService::class)->as($nsid)->test->login();
 | Galleries | `getList`, `getInfo`, `getPhotos` | list/getPhotos | getPhotos → photos + groups |
 | Favorites | `getList` | yes | photos + favorites |
 | Test | `login`, `echo`, `null` | no | — |
+| Tags | `getListUser`, `getListUserPopular`, `getListUserRaw`, `getHotList`, `getListPhoto`, `getRelated` | no | — |
 
 ## Queue opt-in
 
@@ -32,9 +33,23 @@ Most adapter methods accept `$queued = false`. When `true`, work is pushed throu
 
 ## Escape hatch
 
+Any Flickr method (including namespaces without a first-class adapter):
+
 ```php
 app(FlickrService::class)->as($nsid)->call('photos', 'getInfo', ['photo_id' => $id]);
+app(FlickrService::class)->as($nsid)->call('groups', 'getInfo', ['group_id' => $id]);
+// Optional: queue uniqueness (60s) and correlation id for logs/events
+app(FlickrService::class)->as($nsid)->call(
+    'contacts',
+    'getList',
+    ['page' => 1],
+    queued: true,
+    unique: true,
+    correlationId: $runId,
+);
 ```
+
+Unknown namespaces do **not** break persistence listeners after a successful call — they simply do not auto-persist.
 
 ## Not adapters
 

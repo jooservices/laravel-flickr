@@ -7,7 +7,6 @@ namespace JOOservices\LaravelFlickr\Tests\Unit\Http;
 use Illuminate\Support\Facades\Event;
 use JOOservices\Flickr\Client\FakeFlickrTransport;
 use JOOservices\LaravelFlickr\Events\FlickrOAuthCompleted;
-use JOOservices\LaravelFlickr\Exceptions\AppNotFoundException;
 use JOOservices\LaravelFlickr\Models\Token;
 use JOOservices\LaravelFlickr\OAuth\OAuthService;
 use JOOservices\LaravelFlickr\OAuth\PendingAuthorizationStore;
@@ -88,15 +87,16 @@ final class OAuthCallbackControllerTest extends TestCase
     }
 
     #[Test]
-    public function callback_throws_when_pending_app_was_deleted(): void
+    public function callback_returns_404_when_pending_app_was_deleted(): void
     {
         $this->storeApp('gone-app', 'k', 's');
         $requestToken = fake()->sha1();
         app(PendingAuthorizationStore::class)->put($requestToken, 'secret', 'gone-app', null, 900);
         app(AppRepository::class)->forget('gone-app');
 
-        $this->withoutExceptionHandling();
-        $this->expectException(AppNotFoundException::class);
-        $this->getJson('/api/v1/oauth/flickr/callback?oauth_token='.$requestToken.'&oauth_verifier=verifier-ok');
+        $response = $this->getJson('/api/v1/oauth/flickr/callback?oauth_token='.$requestToken.'&oauth_verifier=verifier-ok');
+
+        $response->assertNotFound();
+        $this->assertStringContainsString('gone-app', (string) $response->getContent());
     }
 }

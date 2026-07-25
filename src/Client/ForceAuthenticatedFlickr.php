@@ -6,12 +6,17 @@ namespace JOOservices\LaravelFlickr\Client;
 
 use JOOservices\Flickr\Contracts\Client\FlickrClientContract;
 use JOOservices\Flickr\Flickr;
+use JOOservices\Flickr\FlickrFactory;
 use JOOservices\Flickr\Services\RawApiService;
 use ReflectionProperty;
 use RuntimeException;
 
 /**
  * Ensures connection-backed clients always OAuth-sign REST calls.
+ *
+ * {@see FlickrFactory} does not accept a custom REST client decorator,
+ * so this wrapper reflects into {@see RawApiService}'s private client. Fail-closed on
+ * unexpected types. Prefer an upstream SDK injection point when available.
  */
 final class ForceAuthenticatedFlickr
 {

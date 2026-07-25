@@ -115,15 +115,36 @@ final class RedisRequestLimiter implements RequestLimiterInterface
         $lastKey = $prefix.':'.$connectionKey.':last';
         $cooldownKey = $prefix.':'.$connectionKey.':cooldown';
 
-        Redis::connection()->command('zremrangebyscore', [$windowKey, '0', (string) ($now - ($window * 1000))]);
-        $used = $this->integerValue(Redis::connection()->command('zcard', [$windowKey])) ?? 0;
+        // Prune first (write must precede cardinality read), then pipeline reads.
+        $connection = Redis::connection();
+        $connection->command('zremrangebyscore', [$windowKey, '0', (string) ($now - ($window * 1000))]);
+
+        // Illuminate Connection proxies pipeline() via __call; PHPStan sees ext-redis pipeline()
+        // (0 params). Runtime path is PhpRedisConnection::pipeline(?callable).
+        // @phpstan-ignore-next-line staticMethod.dynamicCall, arguments.count
+        $piped = $connection->pipeline(static function (object $pipe) use ($windowKey, $cooldownKey, $lastKey): void {
+            // @phpstan-ignore method.notFound (Redis|Predis pipeline client)
+            $pipe->zcard($windowKey);
+            // @phpstan-ignore method.notFound
+            $pipe->get($cooldownKey);
+            // phpredis: boolean true enables WITHSCORES (flat [member, score] list).
+            // @phpstan-ignore method.notFound
+            $pipe->zrange($windowKey, 0, 0, true);
+            // @phpstan-ignore method.notFound
+            $pipe->get($lastKey);
+        });
+
+        /** @var list<mixed> $results */
+        $results = is_array($piped) ? array_values($piped) : [];
+
+        $used = $this->integerValue($results[0] ?? null) ?? 0;
         $remaining = max(0, $max - $used);
 
-        $cooldownUntil = $this->integerValue(Redis::get($cooldownKey));
+        $cooldownUntil = $this->integerValue($results[1] ?? null);
         $inCooldown = $cooldownUntil !== null && $cooldownUntil > time();
         $cooldownExpiresAt = $inCooldown ? Carbon::createFromTimestamp($cooldownUntil) : null;
 
-        $oldest = Redis::connection()->command('zrange', [$windowKey, 0, 0, 'WITHSCORES']);
+        $oldest = $this->normalizeZRangeWithScores($results[2] ?? null);
         $windowResetsAt = Carbon::now()->addSeconds($window);
         if (is_array($oldest) && isset($oldest[1]) && is_numeric($oldest[1])) {
             $windowResetsAt = Carbon::createFromTimestampMs(((int) $oldest[1]) + ($window * 1000));
@@ -133,7 +154,7 @@ final class RedisRequestLimiter implements RequestLimiterInterface
         if ($inCooldown) {
             $nextAllowedAt = $cooldownExpiresAt;
         } else {
-            $last = $this->integerValue(Redis::get($lastKey));
+            $last = $this->integerValue($results[3] ?? null);
             if ($last !== null && ($now - $last) < $gapMs) {
                 $nextAllowedAt = Carbon::createFromTimestampMs($last + $gapMs);
             } elseif ($remaining === 0) {
@@ -188,6 +209,30 @@ final class RedisRequestLimiter implements RequestLimiterInterface
         }
 
         return is_string($value) && is_numeric($value) ? (int) $value : null;
+    }
+
+    /**
+     * Normalize ZRANGE WITHSCORES output to a flat [member, score] list when possible.
+     *
+     * @return array<int|string, mixed>|null
+     */
+    private function normalizeZRangeWithScores(mixed $oldest): ?array
+    {
+        if (! is_array($oldest) || $oldest === []) {
+            return is_array($oldest) ? $oldest : null;
+        }
+
+        // Associative ['member' => score] (some clients) → [member, score]
+        if (! array_is_list($oldest)) {
+            $member = array_key_first($oldest);
+            if ($member === null) {
+                return $oldest;
+            }
+
+            return [(string) $member, $oldest[$member]];
+        }
+
+        return $oldest;
     }
 
     private function claimScript(): string

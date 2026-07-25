@@ -19,5 +19,6 @@ final class FlickrCallCompleted
         public readonly array $params,
         public readonly bool $queued,
         public readonly FlickrCallOutcome $outcome,
+        public readonly ?string $correlationId = null,
     ) {}
 }

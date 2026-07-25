@@ -6,8 +6,9 @@ namespace JOOservices\LaravelFlickr\Repositories;
 
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
-use JOOservices\LaravelFlickr\Events\FlickrPhotoGroupRemoved;
 use JOOservices\LaravelFlickr\Models\PhotoGroup;
+use JOOservices\LaravelFlickr\Service\PersistenceReconcileService;
+use JOOservices\LaravelFlickr\Support\MongoBulkUpsert;
 use Jooservices\LaravelRepository\Contracts\RepositoryInterface;
 use Jooservices\LaravelRepository\Repositories\EloquentRepository;
 use Jooservices\LaravelRepository\Traits\HasCrud;
@@ -32,17 +33,31 @@ final class PhotoGroupRepository extends EloquentRepository implements Repositor
     /** @param  list<string>  $photoIds */
     public function attachMany(string $ownerNsid, string $groupType, string $groupId, array $photoIds): void
     {
+        $rows = [];
         foreach ($photoIds as $photoId) {
-            $this->photoGroups->newQuery()->updateOrCreate(
-                [
+            if ($photoId === '') {
+                continue;
+            }
+
+            $rows[] = [
+                'filter' => [
                     'owner_nsid' => $ownerNsid,
                     'photo_id' => $photoId,
                     'group_type' => $groupType,
                     'group_id' => $groupId,
                 ],
-                ['last_seen_at' => now(), 'removed_at' => null],
-            );
+                'set' => [
+                    'owner_nsid' => $ownerNsid,
+                    'photo_id' => $photoId,
+                    'group_type' => $groupType,
+                    'group_id' => $groupId,
+                    'last_seen_at' => now()->toDateTime(),
+                    'removed_at' => null,
+                ],
+            ];
         }
+
+        MongoBulkUpsert::upsert($this->photoGroups, $rows);
     }
 
     /** @return list<string> */
@@ -58,20 +73,33 @@ final class PhotoGroupRepository extends EloquentRepository implements Repositor
         return $ids;
     }
 
-    public function reconcile(string $ownerNsid, string $groupType, string $groupId, CarbonInterface $completedBefore): int
-    {
+    /**
+     * Soft-remove stale group memberships. Events fired by {@see PersistenceReconcileService}.
+     *
+     * @return list<array{photo_id: string, last_seen_at: CarbonInterface}>
+     */
+    public function markStaleRemoved(
+        string $ownerNsid,
+        string $groupType,
+        string $groupId,
+        CarbonInterface $completedBefore,
+    ): array {
         $stale = $this->activeInGroup($ownerNsid, $groupType, $groupId)
             ->where('last_seen_at', '<', $completedBefore)
             ->get();
 
+        $removed = [];
         foreach ($stale as $row) {
             /** @var CarbonInterface $lastSeenAt */
             $lastSeenAt = $row->last_seen_at;
             $row->update(['removed_at' => now()]);
-            event(new FlickrPhotoGroupRemoved($ownerNsid, $row->photo_id, $groupType, $groupId, $lastSeenAt));
+            $removed[] = [
+                'photo_id' => $row->photo_id,
+                'last_seen_at' => $lastSeenAt,
+            ];
         }
 
-        return $stale->count();
+        return $removed;
     }
 
     /** @return Builder<PhotoGroup> */

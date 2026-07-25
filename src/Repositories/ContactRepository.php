@@ -6,8 +6,9 @@ namespace JOOservices\LaravelFlickr\Repositories;
 
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
-use JOOservices\LaravelFlickr\Events\FlickrContactRemoved;
 use JOOservices\LaravelFlickr\Models\Contact;
+use JOOservices\LaravelFlickr\Service\PersistenceReconcileService;
+use JOOservices\LaravelFlickr\Support\MongoBulkUpsert;
 use Jooservices\LaravelRepository\Contracts\RepositoryInterface;
 use Jooservices\LaravelRepository\Repositories\EloquentRepository;
 use Jooservices\LaravelRepository\Traits\HasCrud;
@@ -32,32 +33,50 @@ final class ContactRepository extends EloquentRepository implements RepositoryIn
     /** @param  list<array<string, mixed>>  $items */
     public function upsertMany(string $ownerNsid, array $items): void
     {
+        $rows = [];
         foreach ($items as $item) {
             if (! isset($item['nsid']) || ! is_scalar($item['nsid'])) {
                 continue;
             }
 
-            $this->contacts->newQuery()->updateOrCreate(
-                ['owner_nsid' => $ownerNsid, 'contact_nsid' => (string) $item['nsid']],
-                ['last_seen_at' => now(), 'removed_at' => null, 'raw' => $item],
-            );
+            $rows[] = [
+                'filter' => ['owner_nsid' => $ownerNsid, 'contact_nsid' => (string) $item['nsid']],
+                'set' => [
+                    'owner_nsid' => $ownerNsid,
+                    'contact_nsid' => (string) $item['nsid'],
+                    'last_seen_at' => now()->toDateTime(),
+                    'removed_at' => null,
+                    'raw' => $item,
+                ],
+            ];
         }
+
+        MongoBulkUpsert::upsert($this->contacts, $rows);
     }
 
-    public function reconcile(string $ownerNsid, CarbonInterface $completedBefore): int
+    /**
+     * Soft-remove stale contacts. Domain events are fired by {@see PersistenceReconcileService}.
+     *
+     * @return list<array{contact_nsid: string, last_seen_at: CarbonInterface}>
+     */
+    public function markStaleRemoved(string $ownerNsid, CarbonInterface $completedBefore): array
     {
         $stale = $this->activeForOwner($ownerNsid)
             ->where('last_seen_at', '<', $completedBefore)
             ->get();
 
+        $removed = [];
         foreach ($stale as $contact) {
             /** @var CarbonInterface $lastSeenAt */
             $lastSeenAt = $contact->last_seen_at;
             $contact->update(['removed_at' => now()]);
-            event(new FlickrContactRemoved($ownerNsid, $contact->contact_nsid, $lastSeenAt));
+            $removed[] = [
+                'contact_nsid' => $contact->contact_nsid,
+                'last_seen_at' => $lastSeenAt,
+            ];
         }
 
-        return $stale->count();
+        return $removed;
     }
 
     /** @return Builder<Contact> */
