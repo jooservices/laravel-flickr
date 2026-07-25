@@ -185,7 +185,7 @@ final class RedisRequestLimiterTest extends TestCase
         $pipe = \Mockery::mock();
         $pipe->shouldReceive('zcard')->once()->with($windowKey)->andReturnSelf();
         $pipe->shouldReceive('get')->once()->with($cooldownKey)->andReturnSelf();
-        $pipe->shouldReceive('zrange')->once()->with($windowKey, 0, 0, true)->andReturnSelf();
+        $pipe->shouldReceive('zrange')->once()->with($windowKey, 0, 0, ['WITHSCORES' => true])->andReturnSelf();
         $pipe->shouldReceive('get')->once()->with($lastKey)->andReturnSelf();
 
         $connection = \Mockery::mock();

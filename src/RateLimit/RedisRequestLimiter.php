@@ -127,9 +127,9 @@ final class RedisRequestLimiter implements RequestLimiterInterface
             $pipe->zcard($windowKey);
             // @phpstan-ignore method.notFound
             $pipe->get($cooldownKey);
-            // phpredis: boolean true enables WITHSCORES (flat [member, score] list).
+            // Options array is portable for phpredis 5.3+ and Predis (not bool true).
             // @phpstan-ignore method.notFound
-            $pipe->zrange($windowKey, 0, 0, true);
+            $pipe->zrange($windowKey, 0, 0, ['WITHSCORES' => true]);
             // @phpstan-ignore method.notFound
             $pipe->get($lastKey);
         });
