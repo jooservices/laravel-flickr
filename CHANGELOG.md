@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Require the published canonical dependency releases: `jooservices/laravel-repository` `^1.7`, `jooservices/laravel-events` `^1.5`, and `jooservices/laravel-logging` `^1.3`.
+- Import repository APIs exclusively through `JOOservices\LaravelRepository\`.
+- Align protected `master`/`develop` CI checks, release validation, Codecov, OpenSSF Scorecard, badges, and contributor guidance with the ecosystem release flow.
+
 ## [1.2.0] - 2026-07-26
 
 ### Added

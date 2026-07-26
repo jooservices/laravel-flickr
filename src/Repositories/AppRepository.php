@@ -7,7 +7,7 @@ namespace JOOservices\LaravelFlickr\Repositories;
 use InvalidArgumentException;
 use JOOservices\LaravelFlickr\Dto\FlickrApp;
 use JOOservices\LaravelFlickr\Models\App;
-use Jooservices\LaravelRepository\Repositories\EloquentRepository;
+use JOOservices\LaravelRepository\Repositories\EloquentRepository;
 
 /**
  * Named Flickr API app storage — keyed by connection name, not Eloquent primary key.

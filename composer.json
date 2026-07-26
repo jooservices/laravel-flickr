@@ -33,13 +33,14 @@
         "jooservices/flickr": "^2.0",
         "jooservices/laravel-config": "^1.4",
         "jooservices/laravel-controller": "^1.4",
-        "jooservices/laravel-events": "^1.4",
-        "jooservices/laravel-logging": "^1.2",
-        "jooservices/laravel-repository": "^1.4",
+        "jooservices/laravel-events": "^1.5",
+        "jooservices/laravel-logging": "^1.3",
+        "jooservices/laravel-repository": "^1.7",
         "mongodb/laravel-mongodb": "^5.7"
     },
     "require-dev": {
         "dg/bypass-finals": "^1.9",
+        "friendsofphp/php-cs-fixer": "^3.65",
         "laravel/pint": "^1.0",
         "orchestra/testbench": "^11.0",
         "phpmd/phpmd": "^2.13",
@@ -64,6 +65,8 @@
         "test:coverage": "vendor/bin/phpunit --coverage-text --coverage-clover build/coverage/clover.xml",
         "lint:pint": "vendor/bin/pint --test",
         "lint:pint:fix": "vendor/bin/pint",
+        "lint:cs": "vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff --sequential",
+        "lint:cs:fix": "vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --sequential",
         "lint:phpstan": "XDEBUG_MODE=off vendor/bin/phpstan analyse --memory-limit=512M",
         "lint:phpmd": "php -d error_reporting=6143 vendor/bin/phpmd src text phpmd.xml",
         "lint:phpcs": "vendor/bin/phpcs src tests --standard=phpcs.xml",
@@ -74,10 +77,12 @@
         ],
         "lint:all": [
             "@lint",
-            "@lint:phpmd"
+            "@lint:phpmd",
+            "@lint:cs"
         ],
         "lint:fix": [
-            "@lint:pint:fix"
+            "@lint:pint:fix",
+            "@lint:cs:fix"
         ],
         "check": [
             "@lint:all",

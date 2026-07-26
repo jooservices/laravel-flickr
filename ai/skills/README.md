@@ -21,7 +21,7 @@ Release notes: [`CHANGELOG.md`](../../CHANGELOG.md).
 
 ## Release (this repo)
 
-- Default branch: `main`
-- Feature work: branch from `main`, PR back to `main`
-- Release prep: `release/X.Y.Z` from latest `main` → PR into `main`
-- After merge: tag `vX.Y.Z` on `main` and push tags (`.github/workflows/release.yml` validates + creates GitHub Release)
+- Production/default branch: `master`; integration branch: `develop`
+- Feature work: branch from `develop`, then open a PR back to `develop`
+- Release prep: `release/X.Y.Z` from green `develop`, then open a PR into `master`
+- After green post-merge `master` CI: create annotated tag `vX.Y.Z`; wait for the release workflow, then back-merge `master` into `develop` through a PR
