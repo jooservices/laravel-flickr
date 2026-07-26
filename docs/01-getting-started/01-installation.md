@@ -1,7 +1,7 @@
 # Installation
 
 ```bash
-composer require jooservices/laravel-flickr:^1.1
+composer require jooservices/laravel-flickr:^1.3
 ```
 
 Requires:
