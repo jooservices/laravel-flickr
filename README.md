@@ -12,7 +12,7 @@ Laravel integration **on top of** [`jooservices/flickr`](https://github.com/joos
 
 **Package name:** `jooservices/laravel-flickr`  
 **Namespace:** `JOOservices\LaravelFlickr`  
-**Latest stable release:** `v1.2.0`
+**Latest stable release:** `v1.3.0`
 
 ## Charter
 
@@ -36,7 +36,7 @@ Hosts own multi-page orchestration and product workflows. Resolve `ActivityLogSe
 ## Install
 
 ```bash
-composer require jooservices/laravel-flickr:^1.2
+composer require jooservices/laravel-flickr:^1.3
 ```
 
 Requires PHP 8.5+, Laravel illuminate `^13.0`, MongoDB, and Redis (when rate limiting / OAuth pending are used). Transitive HTTP uses `jooservices/client` `^2.1` (Guzzle 7.10+ or 8).

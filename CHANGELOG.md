@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-26
+
 ### Changed
 
 - Require the published canonical dependency releases: `jooservices/laravel-repository` `^1.7`, `jooservices/laravel-events` `^1.5`, and `jooservices/laravel-logging` `^1.3`.
@@ -79,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `jooservices/flickr` ^2.0, ecosystem packages, `mongodb/laravel-mongodb`
 - Guzzle 8 via Composer alias (removed in 1.1.0)
 
+[1.3.0]: https://github.com/jooservices/laravel-flickr/releases/tag/v1.3.0
 [1.2.0]: https://github.com/jooservices/laravel-flickr/releases/tag/v1.2.0
 [1.1.0]: https://github.com/jooservices/laravel-flickr/releases/tag/v1.1.0
 [1.0.0]: https://github.com/jooservices/laravel-flickr/releases/tag/v1.0.0
