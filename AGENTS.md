@@ -2,6 +2,11 @@
 
 ## Core intent
 
+
+## Mandatory PHP namespace
+
+**FORCE ALWAYS** use `JOOservices\LaravelFlickr\` (uppercase `OO`). No alternative casing or compatibility alias is permitted.
+
 - Laravel integration on top of `jooservices/flickr` ^2 + `jooservices/client` ^2.1.
 - Entry point: `FlickrService` (`connection($name)?` → `as($nsid)` / `anonymous()`, then adapters).
   Also: facade `JOOservices\LaravelFlickr\Facades\Flickr` and container alias `app('flickr')`.

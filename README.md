@@ -1,6 +1,8 @@
 # JOOservices Laravel Flickr
 
-[![CI](https://github.com/jooservices/laravel-flickr/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jooservices/laravel-flickr/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/jooservices/laravel-flickr/branch/master/graph/badge.svg)](https://codecov.io/gh/jooservices/laravel-flickr)
+[![CI](https://github.com/jooservices/laravel-flickr/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jooservices/laravel-flickr/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/jooservices/laravel-flickr/badge)](https://securityscorecards.dev/viewer/?uri=github.com/jooservices/laravel-flickr)
 [![PHP Version](https://img.shields.io/badge/PHP-8.5%2B-blue.svg)](https://www.php.net/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Packagist Version](https://img.shields.io/packagist/v/jooservices/laravel-flickr)](https://packagist.org/packages/jooservices/laravel-flickr)

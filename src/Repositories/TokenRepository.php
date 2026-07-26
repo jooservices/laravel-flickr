@@ -7,7 +7,7 @@ namespace JOOservices\LaravelFlickr\Repositories;
 use InvalidArgumentException;
 use JOOservices\LaravelFlickr\Dto\OAuthToken;
 use JOOservices\LaravelFlickr\Models\Token;
-use Jooservices\LaravelRepository\Repositories\EloquentRepository;
+use JOOservices\LaravelRepository\Repositories\EloquentRepository;
 
 /**
  * Token storage — keyed by (app_name, Flickr NSID), not Eloquent primary key.

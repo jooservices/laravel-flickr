@@ -24,27 +24,28 @@ Set `REQUIRE_TEST_INFRA=1` to fail (instead of skip) when Mongo/Redis are unavai
 
 ## Git workflow
 
-This repository uses **`main`** as the default and release branch (no separate `develop`/`master` split).
+This repository uses protected **`develop`** for integration and protected **`master`** for production releases.
 
 | Work | Branch | PR into |
 |---|---|---|
-| Feature / fix | `feature/*` or `fix/*` from `main` | `main` |
-| Release prep | `release/X.Y.Z` from `main` | `main` |
-| Hotfix | `hotfix/*` from `main` | `main` |
+| Feature / fix | `feature/*` or `fix/*` from `develop` | `develop` |
+| Release prep | `release/X.Y.Z` from `develop` | `master` |
+| Hotfix | `hotfix/*` from `master` | `master`, then back-merge to `develop` |
 
 Release steps:
 
-1. Land all feature work on `main` (or on `release/X.Y.Z`).
+1. Land all feature work on `develop` through a green PR.
 2. On `release/X.Y.Z`: finalize `CHANGELOG.md`, README version/badges, docs.
-3. Open PR → `main`, merge when CI is green.
-4. From `main`: tag `vX.Y.Z` and push (`git push origin vX.Y.Z`).
-5. GitHub Actions `release.yml` validates the tag and creates the GitHub Release.
+3. Open the release PR into `master` and merge only when every protected check is green.
+4. Wait for post-merge `master` CI, then create and push annotated tag `vX.Y.Z`.
+5. Wait for `release.yml` to validate the tag and create the GitHub Release.
+6. Back-merge the released `master` state into `develop` through a green PR.
 
 Use Conventional Commits where practical (`feat:`, `fix:`, `docs:`, `chore(release):`).
 
 ## Pull requests
 
-1. Branch from `main`
+1. Branch from `develop`
 2. Keep scope focused
 3. Add/adjust tests (happy, unhappy, edge, security-relevant)
 4. Update docs when behaviour or public surface changes
