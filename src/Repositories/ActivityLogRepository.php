@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace JOOservices\LaravelFlickr\Repositories;
 
 use JOOservices\LaravelLogging\Models\ActivityLogRecord;
-use Jooservices\LaravelRepository\Contracts\RepositoryInterface;
-use Jooservices\LaravelRepository\Repositories\EloquentRepository;
-use Jooservices\LaravelRepository\Traits\HasCrud;
-use Jooservices\LaravelRepository\Traits\HasFilter;
-use Jooservices\LaravelRepository\Traits\HasOrder;
-use Jooservices\LaravelRepository\Traits\HasRead;
-use Jooservices\LaravelRepository\Traits\HasRequestQuery;
+use JOOservices\LaravelRepository\Contracts\RepositoryInterface;
+use JOOservices\LaravelRepository\Repositories\EloquentRepository;
+use JOOservices\LaravelRepository\Traits\HasCrud;
+use JOOservices\LaravelRepository\Traits\HasFilter;
+use JOOservices\LaravelRepository\Traits\HasOrder;
+use JOOservices\LaravelRepository\Traits\HasRead;
+use JOOservices\LaravelRepository\Traits\HasRequestQuery;
 
 final class ActivityLogRepository extends EloquentRepository implements RepositoryInterface
 {

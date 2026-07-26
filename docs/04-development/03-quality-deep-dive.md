@@ -103,4 +103,5 @@ Suites include happy / unhappy / validation / multi-app / rate-limit transition 
 - [ ] `flickr:install-indexes` + `flickr:doctor` on a real host  
 - [ ] `CHANGELOG.md` has the version section (not only Unreleased)  
 - [ ] README version / badges / require constraint match the tag  
-- [ ] Tag `vX.Y.Z` on `main` after merge; release workflow validates and publishes GitHub release  
+- [ ] Merge `release/X.Y.Z` from `develop` into `master` only after protected CI passes
+- [ ] Wait for post-merge `master` CI, then create annotated tag `vX.Y.Z`; verify the release workflow and back-merge into `develop`
